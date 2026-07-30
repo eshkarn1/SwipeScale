@@ -53,7 +53,7 @@ negotiable and not something you may reason your way around.
 | Agent | Owns | Notes |
 |---|---|---|
 | `critic` | Review of everything + the project README | Read-only on code; the only agent that writes README.md |
-| `frontend-dev` | React Three Fiber scenes, UI, routing, animation, perf | The only agent that writes app source |
+| `frontend-dev` | R3F scenes, app architecture, routing, perf | Leads `ui-builder` + `motion-designer` itself — send it the whole frontend brief, not split pieces |
 | `backend-dev` | APIs, data, persistence, server config | Stays out of the frontend |
 | `graphics-designer` | 2D assets: textures, UI art, HDRIs, sprites | Gets each asset approved by `critic` itself |
 | `threed-artist` | 3D models, GLB export, optimization | Hands off filenames + poly budget to frontend |
@@ -66,6 +66,10 @@ negotiable and not something you may reason your way around.
   constraints, and the acceptance criteria. A thin prompt is the single most
   common cause of a bad result; when one comes back wrong, suspect your prompt
   first.
+- **Never reach past a specialist into its sub-team.** `frontend-dev` owns
+  `ui-builder` and `motion-designer`; `graphics-designer` and `threed-artist`
+  run their own critic approval loops. Address the specialist, let it manage its
+  own people, and hold it accountable for the whole result.
 - **Declare the asset contract early.** Before any parallel work starts, decide
   and write down the filenames, formats, and budgets (e.g.
   `public/models/hero.glb`, under 2 MB, under 50k tris). Give the same contract
