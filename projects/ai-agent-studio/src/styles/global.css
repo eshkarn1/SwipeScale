@@ -113,3 +113,844 @@ a {
     scroll-behavior: auto !important;
   }
 }
+
+/* ==========================================================================
+   Layout primitives
+   ========================================================================== */
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+main {
+  flex: 1;
+  width: 100%;
+}
+
+main > * {
+  width: min(1120px, 100% - 2.5rem);
+  margin-inline: auto;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+  line-height: 1.65;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.button--primary {
+  background: var(--text-primary);
+  color: var(--surface-base);
+}
+
+.button--primary:hover {
+  transform: translateY(-1px);
+}
+
+.button--secondary {
+  background: transparent;
+  color: var(--text-primary);
+  border-color: var(--border-interactive);
+}
+
+.button--secondary:hover {
+  background: var(--surface-elevated);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   Header / nav / footer
+   ========================================================================== */
+
+.site-header {
+  border-bottom: 1px solid var(--border-hairline);
+  background: color-mix(in srgb, var(--surface-base) 88%, transparent);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.site-nav {
+  width: min(1120px, 100% - 2.5rem);
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding-block: var(--space-4);
+}
+
+.site-nav__brand {
+  font-weight: 700;
+  font-size: 1.05rem;
+  text-decoration: none;
+  letter-spacing: -0.02em;
+  margin-inline-end: auto;
+}
+
+.site-nav__links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.site-nav__links a {
+  text-decoration: none;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  transition: color 0.15s ease;
+}
+
+.site-nav__links a:hover,
+.site-nav__links a.active {
+  color: var(--text-primary);
+}
+
+.site-nav__cta {
+  background: var(--text-primary);
+  color: var(--surface-base) !important;
+  font-weight: 600;
+}
+
+.site-nav__cta:hover {
+  opacity: 0.9;
+}
+
+.site-footer {
+  border-top: 1px solid var(--border-hairline);
+  margin-top: var(--space-16);
+  padding-block: var(--space-8);
+}
+
+.site-footer p {
+  width: min(1120px, 100% - 2.5rem);
+  margin-inline: auto;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+/* ==========================================================================
+   Hero
+   ========================================================================== */
+
+.hero {
+  position: relative;
+  display: grid;
+  align-items: center;
+  min-height: clamp(420px, 62vh, 620px);
+  padding-block: var(--space-16);
+  isolation: isolate;
+}
+
+.hero__canvas {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.55;
+  mask-image: radial-gradient(ellipse 70% 70% at 70% 50%, #000 35%, transparent 78%);
+}
+
+.hero__canvas--static {
+  display: grid;
+  place-items: center;
+}
+
+.hero__content {
+  max-width: 34rem;
+}
+
+.hero h1 {
+  font-size: clamp(2.25rem, 6vw, 3.75rem);
+  margin-bottom: var(--space-6);
+}
+
+.hero__lede {
+  color: var(--text-muted);
+  font-size: clamp(1rem, 2vw, 1.15rem);
+  margin-bottom: var(--space-8);
+  text-wrap: pretty;
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+/* ==========================================================================
+   Value props + home CTA
+   ========================================================================== */
+
+.value-props {
+  padding-block: var(--space-16);
+  border-top: 1px solid var(--border-hairline);
+}
+
+.value-props h2,
+.home-cta h2 {
+  font-size: clamp(1.5rem, 3.5vw, 2.15rem);
+  margin-bottom: var(--space-8);
+}
+
+.value-props__grid {
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+}
+
+.value-props__grid li {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+}
+
+.value-props__grid h3 {
+  font-size: 1.08rem;
+  margin-bottom: var(--space-3);
+}
+
+.value-props__grid p {
+  color: var(--text-muted);
+  font-size: 0.94rem;
+}
+
+.home-cta {
+  padding-block: var(--space-16);
+  border-top: 1px solid var(--border-hairline);
+  text-align: center;
+}
+
+.home-cta p {
+  color: var(--text-muted);
+  max-width: 52ch;
+  margin-inline: auto;
+  margin-bottom: var(--space-8);
+}
+
+.home-cta__actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ==========================================================================
+   Page headers
+   ========================================================================== */
+
+.agents-directory > header,
+.teams-index > header,
+.team-detail > header {
+  padding-block: var(--space-12) var(--space-8);
+}
+
+.agents-directory h1,
+.teams-index h1,
+.team-detail h1,
+.not-found h1 {
+  font-size: clamp(1.85rem, 4.5vw, 2.6rem);
+  margin-bottom: var(--space-4);
+}
+
+.agents-directory__lede,
+.teams-index__lede,
+.team-detail > header p {
+  color: var(--text-muted);
+  max-width: 60ch;
+}
+
+.agents-directory__count {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  margin-top: var(--space-4);
+}
+
+/* ==========================================================================
+   Filters
+   ========================================================================== */
+
+.agents-directory__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-6);
+  padding: var(--space-6);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-8);
+}
+
+.agents-directory__filters > label[for='agent-search'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.agents-directory__filters input[type='search'] {
+  flex: 1 1 16rem;
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-base);
+  color: var(--text-primary);
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 0.94rem;
+}
+
+.agents-directory__filters fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.agents-directory__filters legend {
+  padding: 0;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.agents-directory__filters fieldset label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.agents-directory__filters fieldset label:hover {
+  color: var(--text-primary);
+}
+
+.agents-directory__filters button {
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.agents-directory__empty {
+  padding: var(--space-12);
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--surface-elevated);
+  border-radius: var(--radius-md);
+}
+
+/* ==========================================================================
+   Cards
+   ========================================================================== */
+
+.agents-directory__grid,
+.teams-index__list {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  padding-bottom: var(--space-8);
+}
+
+.agent-card,
+.team-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  height: 100%;
+  padding: var(--space-6);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+  transition:
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.agent-card::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 3px;
+  background: var(--agent-accent, var(--border-interactive));
+}
+
+.agent-card:hover,
+.team-card:hover {
+  border-color: var(--border-interactive);
+  transform: translateY(-2px);
+}
+
+.agent-card h2,
+.team-card h2 {
+  font-size: 1.15rem;
+  color: var(--agent-text, var(--text-primary));
+}
+
+.agent-card__title {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.agent-card__summary,
+.team-card p {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  flex: 1;
+}
+
+.agent-card__meta,
+.team-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  flex: 0;
+}
+
+.agent-card__meta span,
+.team-card__meta span {
+  font-size: 0.75rem;
+  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+  border: 1px solid var(--border-hairline);
+  background: var(--surface-base);
+  color: var(--text-muted);
+}
+
+.agent-card__cta,
+.team-card__cta {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.agent-card__cta::after,
+.team-card__cta::after {
+  content: ' →';
+}
+
+/* ==========================================================================
+   Agent detail
+   ========================================================================== */
+
+.agent-detail,
+.team-detail,
+.not-found {
+  padding-block: var(--space-12) var(--space-16);
+}
+
+.agent-detail > header {
+  padding-bottom: var(--space-8);
+  border-bottom: 1px solid var(--border-hairline);
+  margin-bottom: var(--space-8);
+}
+
+.agent-detail__eyebrow {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--agent-text, var(--text-muted));
+  margin-bottom: var(--space-3);
+}
+
+.agent-detail h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  margin-bottom: var(--space-4);
+}
+
+.agent-detail__description {
+  color: var(--text-muted);
+  max-width: 62ch;
+  font-size: 1.02rem;
+}
+
+.agent-detail__facts {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  margin: 0 0 var(--space-8);
+  padding: var(--space-6);
+  background: var(--surface-elevated);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-hairline);
+}
+
+.agent-detail__facts dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.agent-detail__facts dd {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.agent-detail__note {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.agent-detail__buy,
+.agent-detail__enquire,
+.team-detail__enquire {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: flex-start;
+  padding: var(--space-8);
+  margin-block: var(--space-8);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius-md);
+}
+
+.agent-detail__enquire h2,
+.team-detail__enquire h2 {
+  font-size: 1.35rem;
+}
+
+.agent-detail__buy-text,
+.agent-detail__enquire p,
+.team-detail__enquire p {
+  color: var(--text-muted);
+  max-width: 56ch;
+}
+
+.agent-detail__buy-actions,
+.team-detail__enquire-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.agent-detail section,
+.team-detail section {
+  margin-bottom: var(--space-8);
+}
+
+.agent-detail section h2,
+.team-detail section h2 {
+  font-size: 1.3rem;
+  margin-bottom: var(--space-4);
+}
+
+.agent-detail section h3 {
+  font-size: 1rem;
+  margin-bottom: var(--space-3);
+  color: var(--text-muted);
+}
+
+.agent-detail section ul li,
+.team-detail section ul li {
+  color: var(--text-muted);
+  padding-block: var(--space-2);
+  line-height: 1.6;
+}
+
+.agent-detail__tools {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+}
+
+.agent-detail__tools > li {
+  padding: var(--space-4);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+}
+
+.agent-detail__tool-name {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  margin-inline-end: var(--space-2);
+}
+
+.agent-detail__tool-kind {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   Team detail
+   ========================================================================== */
+
+.team-graph {
+  position: relative;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface-elevated);
+  margin-bottom: var(--space-6);
+}
+
+.team-graph__canvas {
+  height: clamp(340px, 55vh, 560px);
+}
+
+.team-graph__legend {
+  position: absolute;
+  left: var(--space-4);
+  bottom: var(--space-4);
+  display: flex;
+  gap: var(--space-4);
+  font-size: 0.75rem;
+}
+
+.team-graph__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
+}
+
+.team-graph__legend-item::before {
+  content: '';
+  width: 14px;
+  height: 2px;
+  background: var(--edge-delegates);
+}
+
+.team-graph__legend-item[data-edge-kind='approves']::before {
+  background: var(--edge-approves);
+}
+
+.team-graph__live {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  min-height: 2.6em;
+  margin-bottom: var(--space-6);
+}
+
+.team-graph__roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-12);
+}
+
+.team-graph__roster a {
+  display: inline-block;
+  padding: var(--space-2) var(--space-4);
+  border-radius: 999px;
+  border: 1px solid var(--border-hairline);
+  background: var(--surface-elevated);
+  color: var(--agent-text, var(--text-primary));
+  text-decoration: none;
+  font-size: 0.88rem;
+  transition: border-color 0.15s ease;
+}
+
+.team-graph__roster a:hover {
+  border-color: var(--agent-accent, var(--border-interactive));
+}
+
+/* ==========================================================================
+   404
+   ========================================================================== */
+
+.not-found {
+  text-align: center;
+  max-width: 46ch;
+  margin-inline: auto;
+}
+
+.not-found__code {
+  font-family: var(--font-mono);
+  font-size: 3.5rem;
+  color: var(--text-muted);
+  margin-bottom: var(--space-4);
+}
+
+.not-found p {
+  color: var(--text-muted);
+  margin-bottom: var(--space-8);
+}
+
+.not-found__links {
+  display: flex;
+  gap: var(--space-4);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.not-found__links a {
+  color: var(--text-primary);
+}
+
+/* ==========================================================================
+   Markdown body
+   ========================================================================== */
+
+.markdown-body p,
+.markdown-body li {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.markdown-body p,
+.markdown-body ul,
+.markdown-body ol {
+  margin-bottom: var(--space-4);
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-inline-start: var(--space-6);
+  list-style: disc;
+}
+
+.markdown-body code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  background: var(--surface-elevated);
+  padding: 0.15em 0.4em;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+}
+
+.markdown-body pre {
+  overflow-x: auto;
+  padding: var(--space-4);
+  background: var(--surface-elevated);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-hairline);
+  margin-bottom: var(--space-4);
+}
+
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  margin-bottom: var(--space-4);
+}
+
+.markdown-body th,
+.markdown-body td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-hairline);
+  color: var(--text-muted);
+}
+
+/* Wide content must scroll inside its own container, never the page body. */
+.markdown-body > * {
+  max-width: 100%;
+}
+
+/* ==========================================================================
+   Renderer stats badge — dev affordance, muted
+   ========================================================================== */
+
+.renderer-stats-badge {
+  position: absolute;
+  right: var(--space-4);
+  top: var(--space-4);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--surface-base) 75%, transparent);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-hairline);
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   Narrow viewports
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  .site-nav {
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  .hero__canvas {
+    opacity: 0.3;
+    mask-image: none;
+  }
+
+  .hero__actions .button,
+  .home-cta__actions .button,
+  .agent-detail__buy-actions .button,
+  .team-detail__enquire-actions .button {
+    flex: 1 1 100%;
+  }
+
+  .agent-detail__buy,
+  .agent-detail__enquire,
+  .team-detail__enquire {
+    padding: var(--space-6);
+  }
+}

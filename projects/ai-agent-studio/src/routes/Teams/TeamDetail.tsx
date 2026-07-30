@@ -130,18 +130,36 @@ export default function TeamDetail() {
       </ul>
 
       <section aria-labelledby="structure-notes-heading">
-        <h2 id="structure-notes-heading">Two structural facts worth noticing</h2>
+        <h2 id="structure-notes-heading">How this package is built</h2>
         <ul>
           <li>
             The lead (<Link to={`/agents/${team.lead}`}>{agentsById[team.lead].name}</Link>) holds
-            no file-editing tools at all — uniquely among the eight agents. It plans and delegates;
-            it never writes code itself.
+            no file-editing tools at all. It plans and delegates; it never writes code itself, so
+            the agent deciding what to build is never the agent quietly building it.
           </li>
           <li>
-            The two asset agents run their own approve/reject loop with the critic before anything
-            ships — the &quot;approves&quot; edges above, distinct from the plain delegate/report lines.
+            The asset agents run their own approve/reject loop with the reviewer before anything
+            ships — the &quot;approves&quot; edges above, distinct from the plain delegate lines.
+            Work is gated inside the team, not just at the end.
           </li>
         </ul>
+      </section>
+
+      <section className="team-detail__enquire" aria-labelledby="team-enquire-heading">
+        <h2 id="team-enquire-heading">Deploy this package</h2>
+        <p>
+          {team.members.length} agents, configured to work together, dropped
+          into your repository as versioned files. Tell us what you are
+          building and we will confirm the right configuration.
+        </p>
+        <div className="team-detail__enquire-actions">
+          <a href="mailto:sales@example.com" className="button button--primary">
+            Enquire about pricing
+          </a>
+          <Link to="/agents" className="button button--secondary">
+            Browse individual agents
+          </Link>
+        </div>
       </section>
     </div>
   );

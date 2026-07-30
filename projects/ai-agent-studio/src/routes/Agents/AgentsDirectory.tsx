@@ -44,9 +44,13 @@ export default function AgentsDirectory() {
   return (
     <div className="agents-directory">
       <header>
-        <h1>Agent directory</h1>
-        <p>
-          {resultCount} of {totalCount} agents
+        <h1>Browse agents</h1>
+        <p className="agents-directory__lede">
+          Each agent is a specialist with a defined role and scoped tool
+          access. Filter by the model it runs on or what it is allowed to do.
+        </p>
+        <p className="agents-directory__count" role="status">
+          Showing {resultCount} of {totalCount} agents
         </p>
       </header>
 
@@ -89,7 +93,7 @@ export default function AgentsDirectory() {
         </fieldset>
 
         <fieldset>
-          <legend>Can edit files</legend>
+          <legend>Write access</legend>
           <label>
             <input
               type="radio"
@@ -106,7 +110,7 @@ export default function AgentsDirectory() {
               checked={state.canEditFiles === true}
               onChange={() => setCanEditFiles(true)}
             />
-            Yes
+            Can change files
           </label>
           <label>
             <input
@@ -115,7 +119,7 @@ export default function AgentsDirectory() {
               checked={state.canEditFiles === false}
               onChange={() => setCanEditFiles(false)}
             />
-            No
+            Read-only
           </label>
         </fieldset>
 
@@ -142,9 +146,15 @@ export default function AgentsDirectory() {
                 <h2>{agent.name}</h2>
                 <p className="agent-card__title">{agent.title}</p>
                 <p className="agent-card__summary">{agent.summary}</p>
-                {!agent.canEditFiles ? (
-                  <p className="agent-card__flag">No file-edit tools</p>
-                ) : null}
+                <p className="agent-card__meta">
+                  <span className="agent-card__model">{agent.model}</span>
+                  <span className="agent-card__access">
+                    {agent.canEditFiles ? 'Can change files' : 'Read-only'}
+                  </span>
+                </p>
+                <span className="agent-card__cta" aria-hidden="true">
+                  View details
+                </span>
               </Link>
             </li>
           ))}

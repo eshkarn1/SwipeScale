@@ -58,15 +58,33 @@ export default function AgentDetail() {
           </div>
         ) : null}
         <div>
-          <dt>Can edit files</dt>
+          <dt>Write access</dt>
           <dd>
-            {agent.canEditFiles ? 'Yes' : 'No'}
+            {agent.canEditFiles ? 'Can change files' : 'Read-only'}
             {!agent.canEditFiles ? (
-              <span className="agent-detail__unique"> — unique among the eight agents</span>
+              <span className="agent-detail__note">
+                {' '}
+                — enforced by its tool list, not by instruction
+              </span>
             ) : null}
           </dd>
         </div>
       </dl>
+
+      <div className="agent-detail__buy">
+        <p className="agent-detail__buy-text">
+          Deploy {agent.name} into your codebase, or pair it with the
+          specialists it already knows how to work with.
+        </p>
+        <div className="agent-detail__buy-actions">
+          <a href="#enquire" className="button button--primary">
+            Get this agent
+          </a>
+          <Link to="/teams" className="button button--secondary">
+            See team packages
+          </Link>
+        </div>
+      </div>
 
       {agent.skills.length > 0 ? (
         <section aria-labelledby="skills-heading">
@@ -154,11 +172,21 @@ export default function AgentDetail() {
         </section>
       ))}
 
-      <footer className="agent-detail__provenance">
+      <section className="agent-detail__enquire" id="enquire" aria-labelledby="enquire-heading">
+        <h2 id="enquire-heading">Get {agent.name}</h2>
         <p>
-          Generated from <code>{agent.sourceFile}</code>.
+          Available on its own or as part of a team package. Tell us what you
+          are building and we will confirm the right configuration.
         </p>
-      </footer>
+        <div className="agent-detail__buy-actions">
+          <a href="mailto:sales@example.com" className="button button--primary">
+            Enquire about pricing
+          </a>
+          <Link to="/agents" className="button button--secondary">
+            Compare other agents
+          </Link>
+        </div>
+      </section>
     </article>
   );
 }

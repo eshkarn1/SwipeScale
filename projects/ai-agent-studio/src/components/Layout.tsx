@@ -39,6 +39,15 @@ export function Layout({ children }: LayoutProps) {
                 Teams
               </NavLink>
             </li>
+            <li>
+              <NavLink
+                to="/agents"
+                viewTransition={!reducedMotion}
+                className="site-nav__cta"
+              >
+                Get started
+              </NavLink>
+            </li>
           </ul>
         </nav>
       </header>
@@ -47,8 +56,8 @@ export function Layout({ children }: LayoutProps) {
       </main>
       <footer className="site-footer">
         <p>
-          Built by the studio it presents. Content is generated from the
-          real agent definitions at <code>.claude/agents/*.md</code>.
+          Production-ready AI agents and agent teams, deployable into your own
+          codebase.
         </p>
       </footer>
     </>
