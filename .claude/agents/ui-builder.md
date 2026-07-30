@@ -1,7 +1,7 @@
 ---
 name: ui-builder
 description: Builds the DOM UI layer of 3D websites — components, layout, responsive behavior, typography, styling, and accessibility. Use for the interface and content that sits around and over the 3D canvas.
-tools: Read, Edit, Write, Grep, Glob, Bash, Skill
+tools: Read, Edit, Write, Grep, Glob, Bash, Skill, WebSearch, WebFetch
 model: sonnet
 color: red
 permissionMode: acceptEdits

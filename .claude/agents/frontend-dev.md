@@ -1,7 +1,7 @@
 ---
 name: frontend-dev
 description: Builds the frontend of 3D websites — React Three Fiber scenes, cameras, lighting, materials, UI, routing, animation, and render performance. Use for any client-side implementation work.
-tools: Agent(ui-builder, motion-designer), Read, Edit, Write, Grep, Glob, Bash, Skill, WebFetch
+tools: Agent(ui-builder, motion-designer), Read, Edit, Write, Grep, Glob, Bash, Skill, WebSearch, WebFetch
 model: sonnet
 color: green
 permissionMode: acceptEdits
