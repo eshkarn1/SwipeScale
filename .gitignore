@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+.yarn/
+
+# Build output
+dist/
+build/
+out/
+.next/
+.vite/
+*.tsbuildinfo
+
+# Environment — never commit secrets
+.env
+.env.*
+!.env.example
+
+# Claude Code local state (agent definitions ARE tracked)
+.claude/settings.local.json
+.claude/state/
+
+# Editor
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Caches
+.cache/
+.turbo/
+.eslintcache
+
+# Large intermediate 3D/graphics working files.
+# Final optimized web assets under projects/*/public/ stay tracked.
+*.blend
+*.blend[0-9]*
+*.fbx
+*.obj.orig
+**/raw-assets/
+**/*.psd
+**/*.tif
+**/*.tiff
