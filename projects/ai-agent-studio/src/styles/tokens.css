@@ -1,0 +1,144 @@
+/**
+ * Design tokens — the single source of truth for colour in this project.
+ *
+ * Rebranding ("AI Agent Studio" is a working title) means editing this file
+ * only. No component may hardcode a colour; everything reads a
+ * `var(--token-name)`.
+ *
+ * Contrast verified numerically (WCAG 2.2 relative-luminance formula,
+ * `(L1+0.05)/(L2+0.05)`) against both surfaces below. Script and full
+ * output are in the build report; headline numbers inline as comments.
+ *
+ * --surface-base       #0a0a0d
+ * --surface-elevated   #14141a  (slightly lighter card/panel surface)
+ *
+ * Agent hue pairs are ("accent", "text"):
+ *   accent = saturated, for swatches, chips-as-background, 3D material tint,
+ *            large-scale UI (>=3:1 non-text / large-text requirement).
+ *   text   = a touch lighter, for the same hue used AS body/inline text
+ *            colour directly on a surface (>=4.5:1 normal-text requirement).
+ *
+ * Measured, accent vs --surface-base (#0a0a0d):
+ *   purple  #a78bfa  7.27:1   orange  #f5934a  8.62:1
+ *   green   #4ade80  11.35:1  red     #f2555f  5.88:1
+ *   yellow  #f5d24a  13.37:1  blue    #5b9cf7  7.10:1
+ *   pink    #f472b6  7.47:1   cyan    #33d9e8  11.52:1
+ * All eight ACCENT tokens already clear AA 4.5:1 as text on the base
+ * surface — none needed to be demoted to "accent-only, fails as text".
+ * The lightened `text` variants exist for optical consistency in body
+ * copy and clear 4.5:1 with more headroom (8.1–13.6:1); see report for the
+ * full table incl. the --surface-elevated pass.
+ *
+ * red/orange/pink is the stated collision zone: hues are spaced at
+ * red 355°, orange 28°, pink 330° (25–27° gaps) with deliberately different
+ * saturation/lightness so they stay distinguishable for colour-deficient
+ * vision, not just by hue angle.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* ---- surfaces & structure ---- */
+  --surface-base: #0a0a0d;
+  --surface-elevated: #14141a;
+  --surface-overlay: #1b1b22;
+
+  /* Decorative-only divider — no contrast requirement (WCAG exempts purely
+     decorative, non-informational dividers). */
+  --border-hairline: #1e1e25;
+  /* Meaningful UI-component boundary (inputs, cards, tabs) — 3.01:1 vs
+     --surface-base, clears SC 1.4.11 non-text contrast (>=3:1). */
+  --border-interactive: #5c5c6b;
+  /* Focus ring — 19.77:1 vs base, 18.36:1 vs elevated. Always paired with
+     an outline-offset so it is never clipped by overflow:hidden. */
+  --focus-ring: #ffffff;
+
+  /* ---- text ---- */
+  --text-primary: #f2f2f5; /* 17.70:1 vs base */
+  --text-muted: #a3a3ad; /* 7.91:1 vs base */
+
+  /* ---- agent hues: accent (swatches, chip fills, 3D material, large UI) ---- */
+  --agent-purple-accent: #a78bfa;
+  --agent-orange-accent: #f5934a;
+  --agent-green-accent: #4ade80;
+  --agent-red-accent: #f2555f;
+  --agent-yellow-accent: #f5d24a;
+  --agent-blue-accent: #5b9cf7;
+  --agent-pink-accent: #f472b6;
+  --agent-cyan-accent: #33d9e8;
+
+  /* ---- agent hues: text-safe (inline text / links on --surface-base) ---- */
+  --agent-purple-text: #c4b5fd;
+  --agent-orange-text: #ffb066;
+  --agent-green-text: #6ee7a0;
+  --agent-red-text: #ff8a91;
+  --agent-yellow-text: #f5d24a;
+  --agent-blue-text: #8fbcfb;
+  --agent-pink-text: #f9a8d0;
+  --agent-cyan-text: #79e6f0;
+
+  /* ---- edge kinds (team graph) — must read as visually distinct ---- */
+  --edge-delegates: var(--text-muted);
+  --edge-approves: var(--agent-orange-accent);
+
+  /* ---- layout ---- */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* System-stack only — no runtime font request, hard 3s budget. */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono',
+    monospace;
+}
+
+/**
+ * Resolve an agent colour NAME (from the data layer, e.g. "purple") to a
+ * CSS variable name at the call site with `var(--agent-${color}-accent)`.
+ * Kept as a helper class map here so components never string-build unknown
+ * variable names from untrusted input; the eight names below are the only
+ * values `agent.color` can ever hold.
+ */
+.agent-swatch[data-color='purple'] {
+  --agent-accent: var(--agent-purple-accent);
+  --agent-text: var(--agent-purple-text);
+}
+.agent-swatch[data-color='orange'] {
+  --agent-accent: var(--agent-orange-accent);
+  --agent-text: var(--agent-orange-text);
+}
+.agent-swatch[data-color='green'] {
+  --agent-accent: var(--agent-green-accent);
+  --agent-text: var(--agent-green-text);
+}
+.agent-swatch[data-color='red'] {
+  --agent-accent: var(--agent-red-accent);
+  --agent-text: var(--agent-red-text);
+}
+.agent-swatch[data-color='yellow'] {
+  --agent-accent: var(--agent-yellow-accent);
+  --agent-text: var(--agent-yellow-text);
+}
+.agent-swatch[data-color='blue'] {
+  --agent-accent: var(--agent-blue-accent);
+  --agent-text: var(--agent-blue-text);
+}
+.agent-swatch[data-color='pink'] {
+  --agent-accent: var(--agent-pink-accent);
+  --agent-text: var(--agent-pink-text);
+}
+.agent-swatch[data-color='cyan'] {
+  --agent-accent: var(--agent-cyan-accent);
+  --agent-text: var(--agent-cyan-text);
+}
