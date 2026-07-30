@@ -1,0 +1,32 @@
+{
+  "agent-core": {
+    "path": "public/models/agent-core.glb",
+    "bytes": 7456,
+    "triangles": 168,
+    "vertices": 504,
+    "meshes": 1,
+    "materials": 1,
+    "nodes": 1,
+    "compression": "EXT_meshopt_compression",
+    "boundingBox": {
+      "min": [-0.5, -0.4354838728904724, -0.48746395111083984],
+      "max": [0.5, 0.4354838728904724, 0.48746395111083984],
+      "size": [1, 0.8709677457809448, 0.9749279022216797]
+    }
+  },
+  "lead-core": {
+    "path": "public/models/lead-core.glb",
+    "bytes": 26984,
+    "triangles": 768,
+    "vertices": 2304,
+    "meshes": 1,
+    "materials": 1,
+    "nodes": 1,
+    "compression": "EXT_meshopt_compression",
+    "boundingBox": {
+      "min": [-0.5, -0.5, -0.5],
+      "max": [0.5, 0.5, 0.5],
+      "size": [1, 1, 1]
+    }
+  }
+}
