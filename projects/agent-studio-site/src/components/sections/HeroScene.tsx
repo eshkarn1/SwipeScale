@@ -14,7 +14,10 @@ import { AgentObject } from '@/components/canvas/AgentObject';
  */
 export function HeroScene() {
   return (
-    <section className="relative flex min-h-screen items-center overflow-hidden">
+    <section
+      data-beat="arrival"
+      className="relative flex min-h-screen items-center overflow-hidden"
+    >
       <SceneCanvas
         className="absolute inset-0 z-0"
         ariaLabel="An abstract, slowly rotating three-dimensional form representing an AI agent, reacting to cursor movement."

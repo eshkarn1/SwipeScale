@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import type { Mesh } from 'three';
 import { MathUtils } from 'three';
+import { sceneState } from '@/lib/scene-state';
 
 /**
  * Scaffold version of the hero "agent" object.
@@ -30,7 +31,7 @@ const POINTER_DAMPING = 1.6;
 /** Frames longer than this are treated as this long — see note below. */
 const MAX_DELTA = 1 / 30;
 
-export function AgentObject({ scrollVelocity = 0 }: { scrollVelocity?: number }) {
+export function AgentObject() {
   const meshRef = useRef<Mesh>(null);
 
   // Hoisted: allocating a Vector3 per frame is 3,600 objects a minute for the
@@ -61,9 +62,18 @@ export function AgentObject({ scrollVelocity = 0 }: { scrollVelocity?: number })
 
     // Damped rather than linear: an object that tracks the cursor exactly reads
     // as cheap. The lag is the character.
+    // Under reduced motion the object holds a composed static frame rather
+    // than freezing mid-spin — the calm variant from Deliverable 1.
+    if (sceneState.reducedMotion) {
+      mesh.rotation.set(0, 0.4, 0);
+      mesh.scale.setScalar(1);
+      return;
+    }
+
     damped.current.x = MathUtils.damp(damped.current.x, state.pointer.x, POINTER_DAMPING, dt);
     damped.current.y = MathUtils.damp(damped.current.y, state.pointer.y, POINTER_DAMPING, dt);
-    velocity.current = MathUtils.damp(velocity.current, scrollVelocity, 4, dt);
+    // Read straight from the scroll bridge — no prop, no re-render.
+    velocity.current = MathUtils.damp(velocity.current, sceneState.velocity, 4, dt);
 
     mesh.rotation.y = elapsed.current * IDLE_SPIN + damped.current.x * PARALLAX_YAW;
     mesh.rotation.x = -damped.current.y * PARALLAX_PITCH;
