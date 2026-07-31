@@ -1,7 +1,7 @@
 'use client';
 
 import { SceneCanvas } from '@/components/canvas/SceneCanvas';
-import { AgentObject } from '@/components/canvas/AgentObject';
+import { AgentNetwork } from '@/components/canvas/AgentNetwork';
 
 /**
  * Hero.
@@ -20,14 +20,17 @@ export function HeroScene() {
     >
       <SceneCanvas
         className="absolute inset-0 z-0"
-        ariaLabel="An abstract, slowly rotating three-dimensional form representing an AI agent, reacting to cursor movement."
+        ariaLabel="A three-dimensional diagram of an agent network: an irregular central agent surrounded by smaller specialist agents, with signals travelling along the links between them. It becomes more active as you move the pointer over it."
         fallback={
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_60%_50%,rgba(203,255,77,0.10),transparent_70%)]" />
         }
       >
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[4, 6, 5]} intensity={1.6} />
-        <AgentObject />
+        <ambientLight intensity={0.35} />
+        <directionalLight position={[4, 6, 5]} intensity={1.4} />
+        {/* Rim from behind so the satellites separate from the background
+            instead of flattening into it. */}
+        <directionalLight position={[-5, -2, -6]} intensity={0.7} color="#9ecc2e" />
+        <AgentNetwork />
       </SceneCanvas>
 
       <div className="relative z-10 mx-auto w-full max-w-[var(--container-page)] px-6 md:px-12">

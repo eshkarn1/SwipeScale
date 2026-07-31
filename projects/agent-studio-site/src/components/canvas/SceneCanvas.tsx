@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { gsap } from 'gsap';
 import {
@@ -9,6 +9,18 @@ import {
   TIER_PROFILES,
   type TierProfile,
 } from '@/lib/device-tier';
+
+/**
+ * Tier is detected once, here, and shared. Scene components must read it from
+ * this context rather than calling detectDeviceTier themselves — independent
+ * detection is how two components end up disagreeing about what device they
+ * are on.
+ */
+const TierContext = createContext<TierProfile>(TIER_PROFILES.medium);
+
+export function useTier(): TierProfile {
+  return useContext(TierContext);
+}
 
 /**
  * Joins R3F to the GSAP ticker established in SmoothScrollProvider.
@@ -83,7 +95,7 @@ export function SceneCanvas({ children, fallback, className, ariaLabel }: SceneC
         camera={{ fov: 35, near: 0.1, far: 100, position: [0, 0, 8] }}
       >
         <CanvasTicker />
-        {children}
+        <TierContext.Provider value={profile}>{children}</TierContext.Provider>
       </Canvas>
       <span className="sr-only">{ariaLabel}</span>
     </div>
