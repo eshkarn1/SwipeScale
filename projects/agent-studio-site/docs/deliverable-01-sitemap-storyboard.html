@@ -1,0 +1,796 @@
+<title>Scroll Storyboard — AI Agent Studio</title>
+
+<style>
+  /* ====================================================================
+     AI Agent Studio — Deliverable 1
+     Palette and type inherited from the project's own design system
+     (src/app/globals.css). Webfonts are unavailable here (CSP blocks font
+     CDNs), so Syne/Geist are represented by a system stack tuned with
+     weight and tracking rather than silently falling back.
+     ==================================================================== */
+
+  :root {
+    --void: #08080a;
+    --surface: #0e0e11;
+    --raised: #16161a;
+    --overlay: #1e1e23;
+    --hairline: #1c1c21;
+    --edge: #3a3a42;
+    --text: #f4f4f2;
+    --muted: #9a9a96;
+    --faint: #6b6b68;
+    --accent: #cbff4d;
+    --accent-dim: #9ecc2e;
+    --accent-ink: #0a0f02;
+    --shadow: rgba(0, 0, 0, 0.5);
+
+    --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+    --rule: 5.5rem; /* width of the scroll ruler gutter */
+  }
+
+  /* Light theme: the lime holds as a fill with dark ink, but fails as text
+     on white, so text-accent shifts to a deeper olive that clears 4.5:1. */
+  @media (prefers-color-scheme: light) {
+    :root {
+      --void: #fbfbf9;
+      --surface: #f4f4f0;
+      --raised: #ececE6;
+      --overlay: #e3e3dc;
+      --hairline: #e0e0d8;
+      --edge: #b8b8ae;
+      --text: #16160f;
+      --muted: #55554c;
+      --faint: #83837a;
+      --accent: #5c7a12;
+      --accent-dim: #47600c;
+      --accent-ink: #fbfbf9;
+      --shadow: rgba(0, 0, 0, 0.12);
+    }
+  }
+
+  :root[data-theme="light"] {
+    --void: #fbfbf9;
+    --surface: #f4f4f0;
+    --raised: #ececE6;
+    --overlay: #e3e3dc;
+    --hairline: #e0e0d8;
+    --edge: #b8b8ae;
+    --text: #16160f;
+    --muted: #55554c;
+    --faint: #83837a;
+    --accent: #5c7a12;
+    --accent-dim: #47600c;
+    --accent-ink: #fbfbf9;
+    --shadow: rgba(0, 0, 0, 0.12);
+  }
+
+  :root[data-theme="dark"] {
+    --void: #08080a;
+    --surface: #0e0e11;
+    --raised: #16161a;
+    --overlay: #1e1e23;
+    --hairline: #1c1c21;
+    --edge: #3a3a42;
+    --text: #f4f4f2;
+    --muted: #9a9a96;
+    --faint: #6b6b68;
+    --accent: #cbff4d;
+    --accent-dim: #9ecc2e;
+    --accent-ink: #0a0f02;
+    --shadow: rgba(0, 0, 0, 0.5);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--void);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: clamp(2rem, 5vw, 5rem) clamp(1.25rem, 4vw, 3rem) 6rem;
+  }
+
+  h1, h2, h3, h4 {
+    margin: 0;
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+    font-weight: 800;
+    text-wrap: balance;
+  }
+
+  h1 { font-size: clamp(2.25rem, 6vw, 4rem); }
+  h2 { font-size: clamp(1.5rem, 3.2vw, 2.25rem); }
+  h3 { font-size: clamp(1.0625rem, 1.8vw, 1.3rem); letter-spacing: -0.02em; }
+  h4 { font-size: 0.95rem; letter-spacing: -0.01em; font-weight: 700; }
+
+  p { margin: 0; text-wrap: pretty; }
+
+  .lede {
+    color: var(--muted);
+    font-size: clamp(1rem, 1.6vw, 1.15rem);
+    max-width: 62ch;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+  }
+
+  /* ---- document header ---- */
+  .doc-head {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding-bottom: 2.5rem;
+    border-bottom: 1px solid var(--edge);
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 2rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--faint);
+  }
+  .meta b { color: var(--muted); font-weight: 400; }
+
+  /* ---- generic section rhythm ---- */
+  .section { padding-top: 4.5rem; }
+  .section > .section-head { margin-bottom: 2rem; display: flex; flex-direction: column; gap: 0.85rem; }
+
+  /* ---- sitemap tree ---- */
+  .tree {
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+    padding: 1.5rem;
+    overflow-x: auto;
+  }
+  .tree ul { list-style: none; margin: 0; padding-left: 1.5rem; }
+  .tree > ul { padding-left: 0; }
+  .tree li { position: relative; padding: 0.28rem 0; white-space: nowrap; }
+  .tree ul ul li::before {
+    content: "└─";
+    color: var(--edge);
+    margin-right: 0.5rem;
+  }
+  .tree .route { color: var(--text); }
+  .tree .cms { color: var(--accent); }
+  .tree .note { color: var(--faint); margin-left: 0.6rem; white-space: normal; }
+
+  /* ---- wireframe blocks ---- */
+  .wires { display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fit, minmax(min(300px,100%), 1fr)); }
+  .wire {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+    padding: 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .wire h4 { color: var(--text); }
+  .wire .wire-sub { font-family: var(--mono); font-size: 0.68rem; color: var(--faint); text-transform: uppercase; letter-spacing: 0.1em; }
+  .band {
+    border: 1px dashed var(--edge);
+    border-radius: 5px;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: var(--raised);
+  }
+  .band.is-3d {
+    border-style: solid;
+    border-color: var(--accent-dim);
+    color: var(--text);
+    background: color-mix(in srgb, var(--accent) 9%, var(--raised));
+  }
+  .band.is-cta {
+    border-style: solid;
+    border-color: var(--edge);
+    color: var(--text);
+    font-weight: 600;
+  }
+  .band small { display: block; color: var(--faint); font-size: 0.68rem; margin-top: 0.15rem; }
+
+  /* ---- the storyboard: a scroll ruler with beats pinned to it ---- */
+  .board { margin-top: 1rem; }
+
+  .beat {
+    display: grid;
+    grid-template-columns: var(--rule) 1fr;
+    gap: 0 1.5rem;
+    position: relative;
+  }
+  /* the continuous rule — this is the scroll track itself */
+  .beat::before {
+    content: "";
+    position: absolute;
+    left: calc(var(--rule) - 1px);
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--hairline);
+  }
+  .beat:first-of-type::before { top: 1.1rem; }
+  .beat:last-of-type::before { bottom: auto; height: 1.1rem; }
+
+  .tick {
+    position: relative;
+    padding-top: 0.55rem;
+    text-align: right;
+    padding-right: 0.9rem;
+  }
+  .tick .pct {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    display: block;
+  }
+  .tick .dur {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+  }
+  /* node on the rule */
+  .tick::after {
+    content: "";
+    position: absolute;
+    right: -5px;
+    top: 0.85rem;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--void);
+    border: 1.5px solid var(--edge);
+  }
+  .beat[data-pin="true"] .tick::after {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .beat-body { padding: 0 0 2.75rem; }
+  .beat-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.75rem; margin-bottom: 0.6rem; }
+  .pin-flag {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent-ink);
+    background: var(--accent);
+    padding: 0.15rem 0.45rem;
+    border-radius: 3px;
+  }
+  .beat-desc { color: var(--muted); font-size: 0.92rem; max-width: 64ch; }
+
+  .cam {
+    margin-top: 0.9rem;
+    display: grid;
+    gap: 0.4rem 1.25rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(200px,100%), 1fr));
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-left: 2px solid var(--accent-dim);
+    border-radius: 0 7px 7px 0;
+    padding: 0.75rem 0.9rem;
+    overflow-x: auto;
+  }
+  .cam div { display: flex; gap: 0.5rem; }
+  .cam dt { color: var(--faint); }
+  .cam dd { margin: 0; color: var(--text); font-variant-numeric: tabular-nums; }
+
+  .dom-note {
+    margin-top: 0.7rem;
+    font-size: 0.82rem;
+    color: var(--faint);
+    padding-left: 0.9rem;
+    border-left: 1px solid var(--edge);
+  }
+  .dom-note b { color: var(--muted); font-weight: 600; }
+
+  /* ---- variant table ---- */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--hairline); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.85rem; min-width: 640px; }
+  th, td { text-align: left; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--faint); font-weight: 400; background: var(--surface); }
+  td { color: var(--muted); }
+  td:first-child { color: var(--text); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+
+  /* ---- open questions ---- */
+  .q-list { display: grid; gap: 0.85rem; margin-top: 1.5rem; }
+  .q {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-left: 2px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 0.9rem 1.1rem;
+  }
+  .q h4 { margin-bottom: 0.3rem; }
+  .q p { font-size: 0.86rem; color: var(--muted); }
+
+  .callout {
+    background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+    border: 1px solid var(--accent-dim);
+    border-radius: 10px;
+    padding: 1.15rem 1.35rem;
+    margin-top: 1.5rem;
+  }
+  .callout p { font-size: 0.9rem; color: var(--text); }
+  .callout .eyebrow { margin-bottom: 0.5rem; display: block; }
+
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
+
+  @media (max-width: 640px) {
+    :root { --rule: 3.6rem; }
+    .beat { gap: 0 1rem; }
+    .tick { padding-right: 0.6rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="doc-head">
+    <span class="eyebrow">Deliverable 01</span>
+    <h1>Sitemap, wireframes &amp; scroll storyboard</h1>
+    <p class="lede">
+      The camera journey for a single continuous 3D scene, mapped to scroll
+      position. Content sections are moments within that scene — not pages
+      stacked on top of it.
+    </p>
+    <div class="meta">
+      <span><b>Project</b> AI Agent Studio</span>
+      <span><b>Status</b> For review</span>
+      <span><b>Scene</b> One canvas, persistent across routes</span>
+      <span><b>Blocks</b> Deliverable 02 — style frames</span>
+    </div>
+  </header>
+
+  <!-- ============================ SITEMAP ============================ -->
+  <section class="section">
+    <div class="section-head">
+      <span class="eyebrow">01 — Structure</span>
+      <h2>Sitemap</h2>
+      <p class="lede">
+        Routes marked <span style="color:var(--accent)">in accent</span> are
+        CMS-driven: content editors add and edit them in Sanity without a deploy.
+      </p>
+    </div>
+
+    <div class="tree">
+      <ul>
+        <li><span class="route">/</span><span class="note">— Home. The full scroll journey below.</span></li>
+        <li><span class="route">/agents</span><span class="note">— Catalog. Filter by category + function, search, sort.</span>
+          <ul>
+            <li><span class="cms">/agents/[slug]</span><span class="note">— Agent detail. One per CMS item.</span></li>
+          </ul>
+        </li>
+        <li><span class="route">/teams</span><span class="note">— The 3D node-graph workflow experience.</span>
+          <ul>
+            <li><span class="cms">/teams/[slug]</span><span class="note">— A specific multi-agent workflow.</span></li>
+          </ul>
+        </li>
+        <li><span class="route">/custom</span><span class="note">— Discovery → scoping → build → deploy → support, + scoping form.</span></li>
+        <li><span class="route">/pricing</span><span class="note">— Hybrid: one-time, subscription, and quoted tiers.</span></li>
+        <li><span class="route">/about</span></li>
+        <li><span class="route">/resources</span><span class="note">— Blog index.</span>
+          <ul>
+            <li><span class="cms">/resources/[slug]</span></li>
+          </ul>
+        </li>
+        <li><span class="route">/contact</span><span class="note">— Book a call. Primary conversion target.</span></li>
+        <li><span class="route">/legal</span>
+          <ul>
+            <li><span class="route">/legal/privacy</span></li>
+            <li><span class="route">/legal/terms</span></li>
+            <li><span class="route">/legal/security</span><span class="note">— DPA + subprocessors. Enterprise buyers ask early.</span></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+
+    <div class="callout">
+      <span class="eyebrow">Routing note</span>
+      <p>
+        Route changes never remount the canvas. Navigation animates the scene
+        from one camera state to the next while DOM content cross-fades over
+        it — so the WebGL context, loaded geometry, and compiled shaders all
+        survive the transition. This is the reason the canvas lives in the root
+        layout rather than inside any page.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================ WIREFRAMES ============================ -->
+  <section class="section">
+    <div class="section-head">
+      <span class="eyebrow">02 — Composition</span>
+      <h2>Wireframes</h2>
+      <p class="lede">
+        Block-level composition for the five key templates. Solid accent bands
+        are 3D-occupied regions; dashed bands are DOM. Every CTA sits in the
+        DOM layer — always clickable, never behind the canvas.
+      </p>
+    </div>
+
+    <div class="wires">
+
+      <div class="wire">
+        <span class="wire-sub">Template</span>
+        <h4>Home</h4>
+        <div class="band">Nav — transparent over scene, solidifies on scroll</div>
+        <div class="band is-3d">Hero — agent object, cursor-reactive<small>Headline + dual CTA in DOM, left third</small></div>
+        <div class="band">Proof strip — logos, 3 metrics counting up</div>
+        <div class="band is-3d">Three offerings — object splits into 3 forms<small>Pinned. Each form is a revenue line.</small></div>
+        <div class="band">How it works — 4 steps as spatial waypoints</div>
+        <div class="band is-3d">Team graph preview — camera enters the node cloud</div>
+        <div class="band">Featured agents — 3D-tilt cards</div>
+        <div class="band">Testimonials — outcome quotes, not adjectives</div>
+        <div class="band is-cta">Closing CTA — Book a call<small>Camera returns to hero framing; loop closes</small></div>
+      </div>
+
+      <div class="wire">
+        <span class="wire-sub">Template</span>
+        <h4>Agents — catalog</h4>
+        <div class="band">Nav</div>
+        <div class="band">Title + result count (live region)</div>
+        <div class="band">Filter rail — category, function, sort<small>URL-synced so a filtered view is linkable</small></div>
+        <div class="band is-3d">Card grid — real lighting, tilt on hover<small>Filtering triggers a physical rearrange, not a reflow</small></div>
+        <div class="band is-cta">Inline CTA after first row</div>
+        <div class="band">Footer</div>
+      </div>
+
+      <div class="wire">
+        <span class="wire-sub">Template</span>
+        <h4>Agent — detail</h4>
+        <div class="band">Nav + breadcrumb</div>
+        <div class="band is-3d">Agent portrait — per-category 3D form</div>
+        <div class="band">What it does — outcome first, spec second</div>
+        <div class="band is-3d">Input → processing → output<small>Animated flow; the core explainer</small></div>
+        <div class="band">Integrations · setup time · sample output</div>
+        <div class="band is-cta">Pricing + Deploy / Book a call</div>
+        <div class="band">FAQ — accordion, all content in DOM for SEO</div>
+      </div>
+
+      <div class="wire">
+        <span class="wire-sub">Template</span>
+        <h4>Agent Teams</h4>
+        <div class="band">Nav</div>
+        <div class="band is-3d">Full-bleed node graph<small>The hero of the 3D work. Camera travels through it.</small></div>
+        <div class="band">Node detail panel — reveals on hover/focus</div>
+        <div class="band">Roster list — keyboard-accessible graph equivalent</div>
+        <div class="band">Workflow narrative — what the team actually does</div>
+        <div class="band is-cta">Deploy this team</div>
+      </div>
+
+      <div class="wire">
+        <span class="wire-sub">Template</span>
+        <h4>Custom agents</h4>
+        <div class="band">Nav</div>
+        <div class="band is-3d">Hero — an unformed version of the agent object</div>
+        <div class="band">Process — discovery, scoping, build, deploy, support<small>Ordered: the sequence is the information</small></div>
+        <div class="band">Timeline expectations — honest ranges, not "fast"</div>
+        <div class="band is-cta">Scoping request form — multi-step, animated states</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================ STORYBOARD ============================ -->
+  <section class="section">
+    <div class="section-head">
+      <span class="eyebrow">03 — Choreography</span>
+      <h2>Scroll storyboard</h2>
+      <p class="lede">
+        The home page camera journey. Percentages are position through the
+        page's total scroll length. Filled nodes on the rule are pinned beats —
+        scroll halts while the camera completes its move.
+      </p>
+    </div>
+
+    <div class="board">
+
+      <div class="beat" data-pin="true">
+        <div class="tick"><span class="pct">00 — 08%</span><span class="dur">pinned 1.2s</span></div>
+        <div class="beat-body">
+          <div class="beat-title"><h3>Arrival</h3><span class="pin-flag">Pinned</span></div>
+          <p class="beat-desc">
+            Preloader hands off directly into this frame — the object is already
+            mid-motion when the mask lifts, so the site never appears to start
+            twice. Idle state: slow rotation, cursor parallax, subtle deformation.
+          </p>
+          <dl class="cam">
+            <div><dt>pos</dt><dd>[0, 0, 8]</dd></div>
+            <div><dt>target</dt><dd>[0, 0, 0]</dd></div>
+            <div><dt>fov</dt><dd>35</dd></div>
+            <div><dt>ease</dt><dd>outExpo</dd></div>
+          </dl>
+          <p class="dom-note"><b>DOM</b> — Headline reveals by line mask, 80ms stagger. CTAs fade up after the last line lands.</p>
+        </div>
+      </div>
+
+      <div class="beat">
+        <div class="tick"><span class="pct">08 — 15%</span><span class="dur">scrubbed</span></div>
+        <div class="beat-body">
+          <div class="beat-title"><h3>Proof</h3></div>
+          <p class="beat-desc">
+            Camera pulls back and drifts right; the object recedes to the left
+            third, ceding the frame to evidence. Metrics count up as they cross
+            60% viewport height.
+          </p>
+          <dl class="cam">
+            <div><dt>pos</dt><dd>[1.6, −0.3, 10.5]</dd></div>
+            <div><dt>target</dt><dd>[−0.4, 0, 0]</dd></div>
+            <div><dt>ease</dt><dd>linear (scrub)</dd></div>
+          </dl>
+          <p class="dom-note"><b>DOM</b> — Logo row fades in at 0.06s stagger. Numbers use tabular figures so they don't jitter while counting.</p>
+        </div>
+      </div>
+
+      <div class="beat" data-pin="true">
+        <div class="tick"><span class="pct">15 — 32%</span><span class="dur">pinned 2.4s</span></div>
+        <div class="beat-body">
+          <div class="beat-title"><h3>Three offerings</h3><span class="pin-flag">Pinned</span></div>
+          <p class="beat-desc">
+            The single object separates into three distinct forms — pre-built,
+            custom, teams. This is the clearest statement of what the company
+            sells, so scroll holds until the separation completes. Each form
+            settles into its own orbit; hovering one dims the others.
+          </p>
+          <dl class="cam">
+            <div><dt>pos</dt><dd>[0, 0.4, 12]</dd></div>
+            <div><dt>target</dt><dd>[0, 0, 0]</dd></div>
+            <div><dt>fov</dt><dd>42 (widens)</dd></div>
+            <div><dt>ease</dt><dd>inOutQuart</dd></div>
+          </dl>
+          <p class="dom-note"><b>DOM</b> — Three cards resolve in sequence, each locked to its 3D form's screen position. Card copy leads with the outcome, not the mechanism.</p>
+        </div>
+      </div>
+
+      <div class="beat">
+        <div class="tick"><span class="pct">32 — 48%</span><span class="dur">scrubbed</span></div>
+        <div class="beat-body">
+          <div class="beat-title"><h3>How it works</h3></div>
+          <p class="beat-desc">
+            Camera travels a curved path past four waypoints. The four process
+            steps are positions in space rather than stacked cards — the journey
+            is literal, and scrolling back retraces it exactly.
+          </p>
+          <dl class="cam">
+            <div><dt>path</dt><dd>catmull-rom, 4 waypoints</dd></div>
+            <div><dt>target</dt><dd>tracks path +2 ahead</dd></div>
+            <div><dt>roll</dt><dd>±3° at direction changes</dd></div>
+          </dl>
+          <p class="dom-note"><b>DOM</b> — Step copy pinned to each waypoint's screen projection. Numbering is real here: the order carries meaning.</p>
+        </div>
+      </div>
+
+      <div class="beat" data-pin="true">
+        <div class="tick"><span class="pct">48 — 68%</span><span class="dur">pinned 3.5s</span></div>
+        <div class="beat-body">
+          <div class="beat-title"><h3>Inside the team graph</h3><span class="pin-flag">Pinned</span></div>
+          <p class="beat-desc">
+            The centerpiece. Camera flies <em>into</em> a node cloud — agents as
+            nodes, animated data flowing along the edges in the accent colour.
+            The longest pin on the page, because this is the section that has to
+            do the selling. Nodes are hoverable and focusable; each reveals what
+            that agent does.
+          </p>
+          <dl class="cam">
+            <div><dt>pos</dt><dd>[0, 0, 12] → [0, 0, −2]</dd></div>
+            <div><dt>target</dt><dd>graph centroid</dd></div>
+            <div><dt>fov</dt><dd>42 → 55 (immersion)</dd></div>
+            <div><dt>dof</dt><dd>focus tracks nearest node</dd></div>
+          </dl>
+          <p class="dom-note"><b>DOM</b> — Node labels are real focusable elements, tab-ordered by workflow sequence. A roster list below the canvas gives the same information without WebGL.</p>
+        </div>
+      </div>
+
+      <div class="beat">
+        <div class="tick"><span class="pct">68 — 82%</span><span class="dur">scrubbed</span></div>
+        <div class="beat-body">
+          <div class="beat-title"><h3>Featured agents</h3></div>
+          <p class="beat-desc">
+            Camera exits the graph and dollies laterally past a rank of agent
+            cards. Cards hold real depth and lighting — they tilt toward the
+            cursor and catch the key light as they pass.
+          </p>
+          <dl class="cam">
+            <div><dt>pos</dt><dd>[−6, 0, 6] → [6, 0, 6]</dd></div>
+            <div><dt>target</dt><dd>locked to card row</dd></div>
+            <div><dt>ease</dt><dd>linear (scrub)</dd></div>
+          </dl>
+          <p class="dom-note"><b>DOM</b> — Cards are anchors, not canvas objects. The 3D is a treatment layered on real links so they remain crawlable and keyboard-navigable.</p>
+        </div>
+      </div>
+
+      <div class="beat">
+        <div class="tick"><span class="pct">82 — 90%</span><span class="dur">scrubbed</span></div>
+        <div class="beat-body">
+          <div class="beat-title"><h3>Evidence</h3></div>
+          <p class="beat-desc">
+            Motion calms deliberately. The three forms drift back toward each
+            other as testimonials read — quotes lead with the outcome
+            ("11 hours a week back"), never with adjectives about the software.
+          </p>
+          <dl class="cam">
+            <div><dt>pos</dt><dd>[0, 0, 9]</dd></div>
+            <div><dt>target</dt><dd>[0, 0, 0]</dd></div>
+            <div><dt>ease</dt><dd>outQuart</dd></div>
+          </dl>
+          <p class="dom-note"><b>DOM</b> — Quote text reveals by line. Attribution fades after, never simultaneously.</p>
+        </div>
+      </div>
+
+      <div class="beat" data-pin="true">
+        <div class="tick"><span class="pct">90 — 100%</span><span class="dur">pinned 1.5s</span></div>
+        <div class="beat-body">
+          <div class="beat-title"><h3>Close</h3><span class="pin-flag">Pinned</span></div>
+          <p class="beat-desc">
+            The forms merge back into the single object from the opening frame,
+            and the camera returns to its arrival position. The journey closes
+            where it began — the visual argument that the parts make one thing.
+          </p>
+          <dl class="cam">
+            <div><dt>pos</dt><dd>[0, 0, 8]</dd></div>
+            <div><dt>target</dt><dd>[0, 0, 0]</dd></div>
+            <div><dt>fov</dt><dd>35 (returns)</dd></div>
+            <div><dt>ease</dt><dd>inOutQuart</dd></div>
+          </dl>
+          <p class="dom-note"><b>DOM</b> — Single CTA, no competing secondary. Book a call is the primary conversion and gets the frame to itself.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================ VARIANTS ============================ -->
+  <section class="section">
+    <div class="section-head">
+      <span class="eyebrow">04 — Degradation</span>
+      <h2>Tier &amp; motion variants</h2>
+      <p class="lede">
+        The reduced-motion version is designed, not disabled. Every beat above
+        has a defined calm equivalent that still communicates the same thing.
+      </p>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Beat</th>
+            <th scope="col">Desktop — high</th>
+            <th scope="col">Mobile — medium</th>
+            <th scope="col">Reduced motion</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Arrival</td>
+            <td>Full parallax + deformation, DOF</td>
+            <td>Parallax off, gyro off, no DOF</td>
+            <td>Static composed frame, no idle spin</td>
+          </tr>
+          <tr>
+            <td>Three offerings</td>
+            <td>Pinned separation, 3 orbits</td>
+            <td>Pinned, simplified geometry</td>
+            <td>Cards appear in place; forms pre-separated</td>
+          </tr>
+          <tr>
+            <td>How it works</td>
+            <td>Curved camera path, roll</td>
+            <td>Straight dolly, no roll</td>
+            <td>Cut between four fixed framings</td>
+          </tr>
+          <tr>
+            <td>Team graph</td>
+            <td>Fly-through, animated flow, DOF</td>
+            <td>Orbit outside graph, static edges</td>
+            <td>Fixed isometric view, roster list leads</td>
+          </tr>
+          <tr>
+            <td>Featured agents</td>
+            <td>Lateral dolly, card tilt</td>
+            <td>Native horizontal scroll, no tilt</td>
+            <td>Plain responsive grid</td>
+          </tr>
+          <tr>
+            <td>Close</td>
+            <td>Merge + camera return</td>
+            <td>Merge, simplified</td>
+            <td>Static hero frame returns instantly</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <span class="eyebrow">Budget</span>
+      <p>
+        Text renders and is readable before the scene finishes loading, on every
+        tier. If the 3D fails entirely, the page is still a complete, navigable,
+        conversion-capable site — that is the acceptance test, not a nice-to-have.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================ QUESTIONS ============================ -->
+  <section class="section">
+    <div class="section-head">
+      <span class="eyebrow">05 — Before build</span>
+      <h2>Open questions</h2>
+      <p class="lede">
+        None of these block style frames. All of them block the build.
+      </p>
+    </div>
+
+    <div class="q-list">
+      <div class="q">
+        <h4>Scroll length of the home page</h4>
+        <p>
+          Four pinned beats total roughly 8.6s of held scroll. That is a lot to
+          ask before a visitor reaches the closing CTA. Options: shorten the
+          team-graph pin, or add a persistent "Book a call" in the nav so
+          conversion is never more than one click away at any scroll depth.
+          Recommendation is the persistent nav CTA.
+        </p>
+      </div>
+      <div class="q">
+        <h4>Real content for the proof strip</h4>
+        <p>
+          Logos, metrics, and testimonials are all placeholder-shaped right now.
+          Fabricating them is not an option — the numbers need to be real before
+          hi-fi design, because "11 hours a week" and "2 hours a week" are
+          different designs.
+        </p>
+      </div>
+      <div class="q">
+        <h4>Agent categories</h4>
+        <p>
+          The brief names six functions: sales, support, research, ops, content,
+          finance. Confirm this is the final taxonomy — it drives the CMS schema,
+          the filter UI, and the per-category 3D variant key.
+        </p>
+      </div>
+      <div class="q">
+        <h4>Team graph — real workflows</h4>
+        <p>
+          The node graph needs at least one genuine multi-agent workflow with
+          real hand-offs to model. An invented one will look invented.
+        </p>
+      </div>
+    </div>
+  </section>
+
+</div>
