@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { AGENTS } from '@/content/agents';
+import { getAgents } from '@/lib/sanity';
 import { AgentCatalog } from '@/components/sections/AgentCatalog';
 
 export const metadata: Metadata = {
@@ -16,7 +16,9 @@ export const metadata: Metadata = {
  * client concern layered on top of that — it narrows what is already there
  * rather than fetching.
  */
-export default function AgentsPage() {
+export default async function AgentsPage() {
+  const agents = await getAgents();
+
   return (
     <div className="mx-auto max-w-[var(--container-page)] px-6 pb-32 pt-36 md:px-12 md:pt-44">
       <header className="max-w-[52ch]">
@@ -28,7 +30,7 @@ export default function AgentsPage() {
         </p>
       </header>
 
-      <AgentCatalog agents={AGENTS} />
+      <AgentCatalog agents={agents} />
     </div>
   );
 }
