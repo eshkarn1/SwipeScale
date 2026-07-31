@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AGENTS, CATEGORY_LABELS, getAgent } from '@/content/agents';
+import { BuyButton } from '@/components/commerce/BuyButton';
 
 /** Static params so every agent page is prerendered and crawlable. */
 export function generateStaticParams() {
@@ -68,17 +69,16 @@ export default async function AgentDetailPage({
           <p className="mt-1 text-sm text-text-muted">Live in {agent.setupTime}</p>
         </div>
         <div className="flex flex-wrap gap-3">
+          <BuyButton
+            slug={agent.slug}
+            model={agent.pricing.model}
+            className="cursor-pointer rounded-[var(--radius-full)] bg-accent px-7 py-3.5 text-sm font-semibold text-accent-ink transition-transform duration-[var(--duration-fast)] hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+          />
           <Link
             href="/contact"
-            className="rounded-[var(--radius-full)] bg-accent px-7 py-3.5 text-sm font-semibold text-accent-ink transition-transform duration-[var(--duration-fast)] hover:-translate-y-0.5"
-          >
-            Book a call
-          </Link>
-          <Link
-            href="/pricing"
             className="rounded-[var(--radius-full)] border border-edge px-7 py-3.5 text-sm font-semibold transition-colors duration-[var(--duration-fast)] hover:bg-raised"
           >
-            See pricing
+            Book a call
           </Link>
         </div>
       </div>
