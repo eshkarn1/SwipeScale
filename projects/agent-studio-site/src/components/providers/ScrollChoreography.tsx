@@ -20,7 +20,7 @@ import { prefersReducedMotion } from '@/lib/device-tier';
  */
 
 /** Beats that exist as real sections in the DOM, in document order. */
-const BEATS: SceneBeat[] = ['arrival', 'offerings', 'process', 'close'];
+const BEATS: SceneBeat[] = ['arrival', 'problem', 'offerings', 'process', 'evidence', 'close'];
 
 export function ScrollChoreography() {
   useEffect(() => {

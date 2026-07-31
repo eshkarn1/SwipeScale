@@ -14,7 +14,7 @@
 
 export type SceneBeat =
   | 'arrival'
-  | 'proof'
+  | 'problem'
   | 'offerings'
   | 'process'
   | 'graph'

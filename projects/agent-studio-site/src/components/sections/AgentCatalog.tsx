@@ -113,10 +113,12 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={[
-        'rounded-[var(--radius-full)] border px-4 py-2 text-sm transition-colors duration-[var(--duration-fast)]',
+        // min-h-11 keeps the tap target at 44px even though the label is small.
+        'cursor-pointer rounded-[var(--radius-full)] border px-4 py-2 text-sm',
+        'inline-flex min-h-11 items-center transition-colors duration-[var(--duration-fast)]',
         active
-          ? 'border-accent bg-accent text-accent-ink font-semibold'
-          : 'border-edge text-text-muted hover:text-text',
+          ? 'border-accent bg-accent font-semibold text-accent-ink'
+          : 'border-edge text-text-muted hover:border-text-faint hover:text-text',
       ].join(' ')}
     >
       {children}
