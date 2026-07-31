@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { WORKFLOWS } from '@/content/workflows';
+import { WorkflowExplorer } from '@/components/sections/WorkflowExplorer';
 
 export const metadata: Metadata = {
   title: 'Agent teams',
@@ -8,13 +10,13 @@ export const metadata: Metadata = {
 };
 
 /**
- * Agent teams.
+ * Agent teams — the 3D node-graph experience.
  *
- * The 3D node-graph experience — the centerpiece of the brief's 3D work — is
- * deliberately NOT built here yet. It needs one genuine multi-agent workflow
- * with real hand-offs to model, and an invented one will look invented. This
- * page carries the real argument in DOM so the route is complete, crawlable,
- * and converting while that content is gathered.
+ * The workflow shown is illustrative: it demonstrates how a team is structured
+ * and how work moves through it, which is product explanation and legitimately
+ * ours to design. It makes no claim that a particular customer runs it and
+ * carries no metrics. Swap in a real deployed workflow when one exists — the
+ * awkward edges of a genuine process are what make a diagram convincing.
  */
 const PRINCIPLES = [
   {
@@ -48,7 +50,18 @@ export default function TeamsPage() {
         </p>
       </header>
 
-      <ul className="mt-20 grid gap-px overflow-hidden rounded-[var(--radius-lg)] border border-hairline bg-hairline sm:grid-cols-2">
+      <section className="mt-4" aria-labelledby="workflow-heading">
+        <h2 id="workflow-heading" className="sr-only">
+          Example workflow
+        </h2>
+        <WorkflowExplorer workflow={WORKFLOWS[0]} />
+        <p className="mt-8 max-w-[68ch] text-sm text-text-faint">
+          An illustrative team, shown to explain the structure. Yours is
+          designed around your process — {WORKFLOWS[0].outcome.toLowerCase()}
+        </p>
+      </section>
+
+      <ul className="mt-24 grid gap-px overflow-hidden rounded-[var(--radius-lg)] border border-hairline bg-hairline sm:grid-cols-2">
         {PRINCIPLES.map((p) => (
           <li key={p.title} className="flex flex-col gap-3 bg-surface p-8">
             <h2 className="text-lg">{p.title}</h2>
