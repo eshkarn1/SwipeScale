@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Image from 'next/image';
+import plate from '../../../public/img/agent-plate.jpg';
 
 export const metadata: Metadata = {
   title: 'Custom agents',
@@ -84,21 +86,40 @@ export default function CustomPage() {
         ))}
       </ol>
 
-      <div className="mt-16 flex flex-col gap-5 rounded-[var(--radius-lg)] border border-edge bg-surface p-10 sm:flex-row sm:items-center sm:justify-between">
-        <div className="max-w-[46ch]">
-          <h2 className="text-2xl">Start with a scoping call</h2>
-          <p className="mt-3 text-sm text-text-muted">
-            Before any of the above, a conversation about whether this is worth
-            building at all. Sometimes the honest answer is a pre-built agent,
-            or nothing.
-          </p>
+      {/* Same closing treatment as the home page, so the two read as one
+          system. Reuses the existing plate rather than a second asset —
+          object-position shifts the crop so it does not look like a repeat,
+          and the scrim keeps the copy legible. */}
+      <div className="relative mt-16 overflow-hidden rounded-[var(--radius-lg)] border border-edge bg-black">
+        <Image
+          src={plate}
+          alt=""
+          aria-hidden="true"
+          placeholder="blur"
+          sizes="(max-width: 768px) 100vw, 1200px"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[70%_center] opacity-60"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.92)_0%,rgba(0,0,0,0.8)_55%,rgba(0,0,0,0.55)_100%)] sm:bg-[linear-gradient(95deg,rgba(0,0,0,0.94)_0%,rgba(0,0,0,0.82)_45%,rgba(0,0,0,0.35)_80%,transparent_100%)]"
+        />
+
+        <div className="relative flex flex-col gap-5 p-10 sm:flex-row sm:items-center sm:justify-between md:p-14">
+          <div className="max-w-[46ch]">
+            <h2 className="text-2xl">Start with a scoping call</h2>
+            <p className="mt-3 text-sm text-text-muted">
+              Before any of the above, a conversation about whether this is
+              worth building at all. Sometimes the honest answer is a pre-built
+              agent, or nothing.
+            </p>
+          </div>
+          <Link
+            href="/contact"
+            className="shrink-0 rounded-[var(--radius-full)] bg-accent px-8 py-4 text-sm font-semibold text-accent-ink transition-transform duration-[var(--duration-fast)] hover:-translate-y-0.5"
+          >
+            Book a call
+          </Link>
         </div>
-        <Link
-          href="/contact"
-          className="shrink-0 rounded-[var(--radius-full)] bg-accent px-8 py-4 text-sm font-semibold text-accent-ink transition-transform duration-[var(--duration-fast)] hover:-translate-y-0.5"
-        >
-          Book a call
-        </Link>
       </div>
     </div>
   );
