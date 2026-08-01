@@ -50,23 +50,23 @@ export function HeroScene() {
       {/* Scrim: the copy must stay legible over whatever the scene is doing
           behind it. Reference sites all do this; text straight on a moving 3D
           backdrop is unreadable at some frames. */}
+      {/* pointer-events-none is load-bearing: this sits above the canvas at
+          z-5, so without it the scrim swallows every click and the scene's
+          click interaction silently does nothing. */}
       <div
         aria-hidden="true"
-        className="absolute inset-0 z-[5] bg-[linear-gradient(100deg,rgba(0,0,0,0.92)_0%,rgba(0,0,0,0.75)_34%,rgba(0,0,0,0.15)_62%,transparent_88%)]"
+        className="pointer-events-none absolute inset-0 z-[5] bg-[linear-gradient(100deg,rgba(0,0,0,0.92)_0%,rgba(0,0,0,0.75)_34%,rgba(0,0,0,0.15)_62%,transparent_88%)]"
       />
 
       <div className="relative z-10 mx-auto w-full max-w-[var(--container-page)] px-6 md:px-12">
         <div className="max-w-[42rem]">
-          <Reveal>
-            <p className="font-mono text-2xs uppercase tracking-[0.24em] text-accent">
-              AI Agent Studio
-            </p>
-          </Reveal>
+          {/* No brand eyebrow: the nav says "AI Agent Studio" directly above
+              this, and a rendered screenshot showed the two stacked. */}
 
           {/* CSS-driven, not the JS primitive: this is the LCP element, and the
               JS version ships its initial transform in the SSR HTML — the text
               would be invisible until hydration. See .reveal-line in globals.css. */}
-          <h1 className="mt-8 text-6xl">
+          <h1 className="text-6xl">
             <span className="reveal-mask reveal-line reveal-line-1">
               <span>Agents that ship</span>
             </span>
@@ -109,9 +109,14 @@ export function HeroScene() {
       {/* Scroll affordance. A full-bleed hero with no page furniture leaves
           people unsure there is anything below it. */}
       <Reveal delay={1.1} className="absolute inset-x-0 bottom-8 z-10">
-        <div className="mx-auto flex max-w-[var(--container-page)] px-6 md:px-12">
+        <div className="mx-auto flex max-w-[var(--container-page)] items-center justify-between px-6 md:px-12">
           <span className="font-mono text-2xs uppercase tracking-[0.2em] text-text-faint">
             Scroll
+          </span>
+          {/* Tells people the scene is interactive. Without a hint, almost
+              nobody discovers a click affordance on a background. */}
+          <span className="hidden font-mono text-2xs uppercase tracking-[0.2em] text-text-faint md:inline">
+            Click the scene to dispatch
           </span>
         </div>
       </Reveal>

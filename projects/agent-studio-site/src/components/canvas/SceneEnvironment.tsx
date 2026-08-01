@@ -37,21 +37,27 @@ export function SceneEnvironment() {
 
       {/* Warm rim behind-right. Separates the silhouette from black and puts
           the brand accent into the reflections rather than only into emissive. */}
+      {/* A rendered screenshot showed why a 6x4 panel at intensity 2.4 was
+          wrong here: at metalness ~0.95 the core mirrors its environment, so a
+          large bright lime source does not rim the object — it floods the whole
+          body green. A narrow strip puts the accent on the silhouette edge and
+          leaves the body dark, which is the effect that was wanted. */}
       <Lightformer
         form="rect"
-        intensity={2.4}
+        intensity={1.6}
         color="#CBFF4D"
-        position={[5, -1, -4]}
-        scale={[6, 4, 1]}
+        position={[4.2, -0.6, -3.4]}
+        scale={[1.1, 3.4, 1]}
         target={[0, 0, 0]}
       />
 
       {/* Cool underlight. Stops the lower facets falling to pure black, which
-          is what makes a faceted object read as a silhouette instead of a form. */}
+          is what makes a faceted object read as a silhouette instead of a form.
+          Kept cool and dim so it describes shape without adding a colour cast. */}
       <Lightformer
         form="rect"
-        intensity={1.1}
-        color="#4A6480"
+        intensity={0.75}
+        color="#3E5468"
         position={[0, -5, 1]}
         scale={[7, 4, 1]}
         target={[0, 0, 0]}
