@@ -38,8 +38,19 @@ import { useTier } from '@/components/canvas/SceneCanvas';
  * as a considered object rather than a blob.
  */
 const CORE_RADIUS = 0.95;
-/** Where the whole constellation sits, in world units. Right of the copy. */
-const GROUP_OFFSET: [number, number, number] = [2.15, 0.15, 0];
+/**
+ * Where the constellation sits, in world units.
+ *
+ * Two placements, because one does not work for both. On desktop the copy
+ * occupies the left, so the network sits right of it. On a narrow portrait
+ * viewport the copy is full-width — a rendered mobile screenshot showed
+ * satellites and links running straight through the headline and the CTA row.
+ * There the network moves below the copy and shrinks instead.
+ */
+const GROUP_OFFSET_WIDE: [number, number, number] = [2.15, 0.15, 0];
+const GROUP_OFFSET_NARROW: [number, number, number] = [0.35, -2.6, -0.8];
+/** Aspect below which the narrow placement is used. Portrait-ish. */
+const NARROW_ASPECT = 0.85;
 /**
  * Vertex displacement off the sphere.
  * At 0.3 with detail 4 the screenshot showed a sphere — the displacement was
@@ -262,8 +273,17 @@ export function AgentNetwork() {
 
     const dt = Math.min(delta, MAX_DELTA);
 
+    // Placement follows the viewport, not a fixed constant — see the offsets
+    // above. Read per frame because a resize or an orientation change must
+    // move it, and this is two comparisons.
+    const narrow = state.viewport.aspect < NARROW_ASPECT;
+    const offset = narrow ? GROUP_OFFSET_NARROW : GROUP_OFFSET_WIDE;
+    group.position.set(offset[0], offset[1], offset[2]);
+    const fit = narrow ? 0.72 : 1;
+
     if (sceneState.reducedMotion) {
       group.rotation.set(0, 0.35, 0);
+      group.scale.setScalar(fit);
       return;
     }
 
@@ -292,7 +312,7 @@ export function AgentNetwork() {
 
     group.rotation.y = elapsed.current * IDLE_SPIN + damped.current.x * 0.3;
     group.rotation.x = -damped.current.y * 0.18;
-    group.scale.setScalar(1 + w * 0.04 + ripEnergy * 0.03);
+    group.scale.setScalar(fit * (1 + w * 0.04 + ripEnergy * 0.03));
 
     if (coreRef.current) {
       coreRef.current.rotation.y = -elapsed.current * IDLE_SPIN * 1.5;
@@ -382,7 +402,9 @@ export function AgentNetwork() {
   );
 
   return (
-    <group ref={groupRef} position={GROUP_OFFSET}>
+    // Position is set per frame from the viewport aspect; this is only the
+    // value used for the first frame before useFrame runs.
+    <group ref={groupRef} position={GROUP_OFFSET_WIDE}>
       {/* Click catcher. Invisible, sits behind the constellation, and is the
           only thing in the scene that takes pointer events — one raycast
           target rather than testing every mesh. */}

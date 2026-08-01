@@ -55,7 +55,7 @@ export function HeroScene() {
           click interaction silently does nothing. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-[5] bg-[linear-gradient(100deg,rgba(0,0,0,0.92)_0%,rgba(0,0,0,0.75)_34%,rgba(0,0,0,0.15)_62%,transparent_88%)]"
+        className="pointer-events-none absolute inset-0 z-[5] bg-[linear-gradient(180deg,rgba(0,0,0,0.94)_0%,rgba(0,0,0,0.86)_46%,rgba(0,0,0,0.42)_74%,transparent_100%)] md:bg-[linear-gradient(100deg,rgba(0,0,0,0.92)_0%,rgba(0,0,0,0.75)_34%,rgba(0,0,0,0.15)_62%,transparent_88%)]"
       />
 
       <div className="relative z-10 mx-auto w-full max-w-[var(--container-page)] px-6 md:px-12">
