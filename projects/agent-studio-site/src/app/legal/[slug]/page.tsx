@@ -33,7 +33,11 @@ export default async function LegalPage({ params }: { params: Promise<{ slug: st
     <div className="mx-auto max-w-[var(--container-page)] px-6 pb-32 pt-36 md:px-12 md:pt-44">
       <div className="grid gap-16 lg:grid-cols-[220px_1fr]">
         <nav aria-label="Legal documents" className="lg:sticky lg:top-32 lg:self-start">
-          <h2 className="font-mono text-2xs uppercase tracking-[0.16em] text-text-faint">Legal</h2>
+          {/* Not a heading: this sits before the article's h1 in document
+              order, and an h2 there breaks the heading outline for screen
+              reader users navigating by headings. The nav's aria-label
+              already carries the semantics. */}
+          <p className="font-mono text-2xs uppercase tracking-[0.16em] text-text-faint">Legal</p>
           <ul className="mt-4 flex flex-col gap-2.5">
             {LEGAL_SLUGS.map((s) => (
               <li key={s}>

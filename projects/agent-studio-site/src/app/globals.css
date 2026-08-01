@@ -15,11 +15,22 @@
  * which the brief rules out.
  *
  * CONTRAST (WCAG 2.2 relative luminance, (L1+0.05)/(L2+0.05))
- * Measured against --color-void #08080A:
- *   --color-accent      #CBFF4D   17.55:1   AAA at any size
- *   --color-text        #F4F4F2   18.31:1   AAA
- *   --color-text-muted  #9A9A96    7.35:1   AAA normal text
- *   --color-text-faint  #6B6B68    3.62:1   large text / non-text UI only
+ * Every figure below is computed, not estimated. Re-run the check in
+ * scripts/check-contrast.mjs after changing any colour here.
+ *
+ * Against --color-void #08080A:
+ *   --color-accent      #CBFF4D   17.10:1   AAA at any size
+ *   --color-text        #F4F4F2   18.17:1   AAA
+ *   --color-text-muted  #9A9A96    7.09:1   AAA normal text
+ *   --color-text-faint  #6B6B68    3.74:1   large text / non-text UI only
+ *   --color-edge        #64646C    3.41:1   clears SC 1.4.11 (>=3:1)
+ *   accent-ink on accent          16.59:1   the CTA pairing
+ *
+ * --color-edge is also checked against the surfaces it actually borders:
+ * 3.29:1 on --color-surface and 3.08:1 on --color-raised. It was previously
+ * #3A3A42, which measured 1.78:1 and failed SC 1.4.11 despite a comment
+ * claiming otherwise — hence the script.
+ *
  * The faint ramp is deliberately NOT body-copy safe; it exists for metadata
  * and disabled states, and must never carry meaning on its own.
  */
@@ -37,7 +48,7 @@
      hairline is decorative (WCAG exempts non-informational dividers).
      edge meets SC 1.4.11 non-text contrast (>=3:1) for real UI boundaries. */
   --color-hairline: #1c1c21;
-  --color-edge: #3a3a42;
+  --color-edge: #64646c;
 
   /* ---- text ramp ---- */
   --color-text: #f4f4f2;
