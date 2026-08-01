@@ -5,6 +5,7 @@ import { SiteNav } from '@/components/layout/SiteNav';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { Preloader } from '@/components/layout/Preloader';
 import { Cursor } from '@/components/motion/Cursor';
+import { PageTransition } from '@/components/motion/PageTransition';
 import './globals.css';
 
 // Self-hosted at build time by next/font — no runtime request to Google, which
@@ -52,7 +53,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Cursor />
         <SmoothScrollProvider>
           <SiteNav />
-          <main id="main">{children}</main>
+          <main id="main">
+            <PageTransition>{children}</PageTransition>
+          </main>
           <SiteFooter />
         </SmoothScrollProvider>
       </body>
