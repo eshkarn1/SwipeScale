@@ -4,7 +4,7 @@ import { SceneCanvas } from '@/components/canvas/SceneCanvas';
 import { AgentNetwork } from '@/components/canvas/AgentNetwork';
 import { SceneEnvironment } from '@/components/canvas/SceneEnvironment';
 import { PostFX } from '@/components/canvas/PostFX';
-import { RevealLines, Reveal } from '@/components/motion/Reveal';
+import { Reveal } from '@/components/motion/Reveal';
 import { Magnetic } from '@/components/motion/Magnetic';
 import Link from 'next/link';
 
@@ -63,12 +63,17 @@ export function HeroScene() {
             </p>
           </Reveal>
 
-          <RevealLines
-            as="h1"
-            className="mt-8 text-6xl"
-            lines={['Agents that ship', 'real work.']}
-            delay={0.12}
-          />
+          {/* CSS-driven, not the JS primitive: this is the LCP element, and the
+              JS version ships its initial transform in the SSR HTML — the text
+              would be invisible until hydration. See .reveal-line in globals.css. */}
+          <h1 className="mt-8 text-6xl">
+            <span className="reveal-mask reveal-line reveal-line-1">
+              <span>Agents that ship</span>
+            </span>
+            <span className="reveal-mask reveal-line reveal-line-2">
+              <span>real work.</span>
+            </span>
+          </h1>
 
           <Reveal delay={0.45}>
             <p className="mt-8 max-w-[44ch] text-lg text-text-muted">

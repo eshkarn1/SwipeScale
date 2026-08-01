@@ -206,6 +206,41 @@
     clip-path: inset(0 0 -0.25em 0);
   }
 
+  /**
+   * CSS-only line reveal, for above-the-fold headlines.
+   *
+   * The JS reveal renders its initial state into the SSR HTML — the line ships
+   * translated 110% out of its own mask and is invisible to a human until
+   * hydration finishes. For a hero h1 that is both a progressive-enhancement
+   * failure and an LCP problem, since the LCP element is not painted in its
+   * final position until React takes over.
+   *
+   * This runs from the stylesheet instead: the text paints immediately, the
+   * animation starts on first paint, and nothing depends on JS. Use it for
+   * anything above the fold; the JS primitives stay for scroll-triggered
+   * reveals further down, where in-view detection is the point.
+   */
+  .reveal-line > * {
+    display: block;
+    animation: reveal-line-up 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .reveal-line-1 > * { animation-delay: 0.05s; }
+  .reveal-line-2 > * { animation-delay: 0.13s; }
+  .reveal-line-3 > * { animation-delay: 0.21s; }
+}
+
+@keyframes reveal-line-up {
+  from {
+    transform: translateY(105%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@layer utilities {
+
   .text-balance {
     text-wrap: balance;
   }

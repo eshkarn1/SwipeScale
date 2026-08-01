@@ -7,6 +7,7 @@ import { Preloader } from '@/components/layout/Preloader';
 import { Cursor } from '@/components/motion/Cursor';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { organizationSchema, websiteSchema } from '@/lib/structured-data';
+import { siteUrl } from '@/lib/stripe';
 import './globals.css';
 
 // Self-hosted at build time by next/font — no runtime request to Google, which
@@ -31,15 +32,37 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // Required for canonical and og:url to resolve to absolute URLs. Without it
+  // Next emits neither, and every page looks canonical-less to a crawler.
+  metadataBase: new URL(siteUrl()),
   title: {
     default: 'AI Agent Studio — AI agents that ship real work',
     template: '%s — AI Agent Studio',
   },
   description:
-    'Pre-built AI agents, custom agents built to your spec, and multi-agent teams that run entire workflows. Deploy in days, not quarters.',
+    'Buy a pre-built AI agent, commission one built to your spec, or deploy a multi-agent team that runs an entire workflow. Connected to your own tools, live in days.',
+  // Self-referencing canonical on every route, resolved against metadataBase.
+  alternates: { canonical: './' },
   openGraph: {
     type: 'website',
     siteName: 'AI Agent Studio',
+    url: './',
+    title: 'AI Agent Studio — AI agents that ship real work',
+    description:
+      'Buy a pre-built AI agent, commission one built to your spec, or deploy a multi-agent team that runs an entire workflow.',
+    images: [{ url: '/opengraph-image', width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AI Agent Studio — AI agents that ship real work',
+    description:
+      'Buy a pre-built AI agent, commission one built to your spec, or deploy a multi-agent team that runs an entire workflow.',
+    images: ['/opengraph-image'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large' },
   },
 };
 
