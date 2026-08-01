@@ -4,7 +4,6 @@ import { SceneCanvas } from '@/components/canvas/SceneCanvas';
 import { AgentNetwork } from '@/components/canvas/AgentNetwork';
 import { SceneEnvironment } from '@/components/canvas/SceneEnvironment';
 import { PostFX } from '@/components/canvas/PostFX';
-import { Reveal } from '@/components/motion/Reveal';
 import { Magnetic } from '@/components/motion/Magnetic';
 import Link from 'next/link';
 
@@ -75,15 +74,17 @@ export function HeroScene() {
             </span>
           </h1>
 
-          <Reveal delay={0.45}>
-            <p className="mt-8 max-w-[44ch] text-lg text-text-muted">
-              Buy a pre-built agent, commission one to your spec, or deploy a
-              team that runs an entire workflow. Measured in hours returned to
-              your team, not tokens consumed.
-            </p>
-          </Reveal>
+          {/* CSS reveals, not the JS primitive — everything here is above the
+              fold. The JS version renders opacity:0 into the SSR HTML, and a
+              measurement showed this paragraph had become the LCP element at
+              2876ms because of it. */}
+          <p className="reveal-fade reveal-delay-1 mt-8 max-w-[44ch] text-lg text-text-muted">
+            Buy a pre-built agent, commission one to your spec, or deploy a team
+            that runs an entire workflow. Measured in hours returned to your
+            team, not tokens consumed.
+          </p>
 
-          <Reveal delay={0.58}>
+          <div className="reveal-fade reveal-delay-2">
             <div className="mt-10 flex flex-wrap items-center gap-3">
               {/* Magnetic on the primary CTA only. The effect works because
                   almost nothing else on the page does it. */}
@@ -102,13 +103,13 @@ export function HeroScene() {
                 Browse agents
               </Link>
             </div>
-          </Reveal>
+          </div>
         </div>
       </div>
 
       {/* Scroll affordance. A full-bleed hero with no page furniture leaves
           people unsure there is anything below it. */}
-      <Reveal delay={1.1} className="absolute inset-x-0 bottom-8 z-10">
+      <div className="reveal-fade reveal-delay-3 absolute inset-x-0 bottom-8 z-10">
         <div className="mx-auto flex max-w-[var(--container-page)] items-center justify-between px-6 md:px-12">
           <span className="font-mono text-2xs uppercase tracking-[0.2em] text-text-faint">
             Scroll
@@ -119,7 +120,7 @@ export function HeroScene() {
             Click the scene to dispatch
           </span>
         </div>
-      </Reveal>
+      </div>
     </section>
   );
 }

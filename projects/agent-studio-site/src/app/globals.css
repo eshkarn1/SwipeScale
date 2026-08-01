@@ -228,6 +228,45 @@
   .reveal-line-1 > * { animation-delay: 0.05s; }
   .reveal-line-2 > * { animation-delay: 0.13s; }
   .reveal-line-3 > * { animation-delay: 0.21s; }
+
+  /**
+   * CSS-only fade-up, for above-the-fold content that is not a headline.
+   *
+   * Same reasoning as .reveal-line: the JS <Reveal> renders its initial state
+   * (opacity 0) into the SSR HTML, so the element is invisible until React
+   * hydrates. Measured LCP was 2876ms with the hero PARAGRAPH as the LCP
+   * element — fixing the h1 alone had simply moved the problem down one
+   * element. Anything above the fold uses this; the JS primitives stay for
+   * scroll-triggered reveals below it, where in-view detection is the point.
+   */
+  .reveal-fade {
+    animation: reveal-fade-up var(--duration-slow) var(--ease-out-expo) both;
+  }
+
+  .reveal-delay-1 { animation-delay: 0.30s; }
+  .reveal-delay-2 { animation-delay: 0.42s; }
+  .reveal-delay-3 { animation-delay: 0.90s; }
+}
+
+@keyframes reveal-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Reduced motion: appear, but do not travel. */
+@media (prefers-reduced-motion: reduce) {
+  .reveal-line > *,
+  .reveal-fade {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
 @keyframes reveal-line-up {
