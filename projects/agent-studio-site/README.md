@@ -175,7 +175,30 @@ These are missing on purpose. Do not fill them with placeholder content.
 | Real workflow in the team graph | The one shipped is illustrative and labelled as such | Supply one real deployed workflow with genuine hand-offs |
 | Legal copy | `src/content/legal.ts` is **template content, not legal advice**, with `[SQUARE BRACKET]` placeholders for facts only you know | Lawyer review |
 | Stripe fulfilment | The webhook exists and verifies signatures, but `onPurchase()` only logs | Implement provisioning, welcome email, CRM record. Must be idempotent — Stripe can deliver an event twice |
-| Hero background video | The `video-producer` agent is built and wired, but the higgsfield account has **0 credits on the free plan**, so no generation is possible | Top up credits, then brief it via `team-lead` |
+| Hero background video | Attempted and failed on quality, not on plumbing. Kling 1.6 **Standard** (the only free-tier video model that isn't gated) ignored the structural constraints: it returned a mid-grey ground instead of black, one teal comet instead of faceted shards, and put the bright element straight through the left third where the headline sits | Needs Kling **Pro** or Kling 3.0 — i.e. a paid Kling or Artlist plan. The prompt is written; brief `video-producer` |
+
+---
+
+### Generated imagery — `public/img/`
+
+Both plates came from Flux 2.0 Pro via Artlist and are prompted around one
+constraint: **a large region of the frame must stay pure black** so copy sits
+on it with a light scrim rather than one heavy enough to flatten the artwork.
+
+| Asset | Where | Composition |
+|---|---|---|
+| `agent-plate.jpg` | Home closing CTA, `/custom` closing block | Cluster of faceted forms, left half empty |
+| `agent-array.jpg` | `/agents` header | Orderly array receding into black, upper-left empty |
+
+All are decorative: `alt=""` and `aria-hidden`. Served through `next/image`, so
+the JPEG source is only a source — browsers receive WebP/AVIF. Compressed with
+`sips` at q70/1600px, which for dark low-detail plates is the point where
+further quality stops being visible.
+
+Two gotchas if you regenerate: **`freeGeneration: true` in Artlist's model list
+is not the authority** — the subscription gate is applied at submit, and Pro
+tiers refuse while Standard tiers pass. And a **provider-side failure does not
+consume** a free generation; check the balance before assuming it did.
 
 ---
 
