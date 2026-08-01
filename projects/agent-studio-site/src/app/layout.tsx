@@ -4,6 +4,7 @@ import { SmoothScrollProvider } from '@/components/providers/SmoothScrollProvide
 import { SiteNav } from '@/components/layout/SiteNav';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { Preloader } from '@/components/layout/Preloader';
+import { Cursor } from '@/components/motion/Cursor';
 import './globals.css';
 
 // Self-hosted at build time by next/font — no runtime request to Google, which
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to content
         </a>
         <Preloader />
+        <Cursor />
         <SmoothScrollProvider>
           <SiteNav />
           <main id="main">{children}</main>

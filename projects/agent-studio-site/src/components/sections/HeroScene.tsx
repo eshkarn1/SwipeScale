@@ -5,6 +5,7 @@ import { AgentNetwork } from '@/components/canvas/AgentNetwork';
 import { SceneEnvironment } from '@/components/canvas/SceneEnvironment';
 import { PostFX } from '@/components/canvas/PostFX';
 import { RevealLines, Reveal } from '@/components/motion/Reveal';
+import { Magnetic } from '@/components/motion/Magnetic';
 import Link from 'next/link';
 
 /**
@@ -78,13 +79,17 @@ export function HeroScene() {
           </Reveal>
 
           <Reveal delay={0.58}>
-            <div className="mt-10 flex flex-wrap gap-3">
-              <Link
-                href="/contact"
-                className="rounded-[var(--radius-full)] bg-accent px-7 py-3.5 text-sm font-semibold text-accent-ink transition-transform duration-[var(--duration-fast)] hover:-translate-y-0.5"
-              >
-                Book a call
-              </Link>
+            <div className="mt-10 flex flex-wrap items-center gap-3">
+              {/* Magnetic on the primary CTA only. The effect works because
+                  almost nothing else on the page does it. */}
+              <Magnetic>
+                <Link
+                  href="/contact"
+                  className="inline-block rounded-[var(--radius-full)] bg-accent px-7 py-3.5 text-sm font-semibold text-accent-ink"
+                >
+                  Book a call
+                </Link>
+              </Magnetic>
               <Link
                 href="/agents"
                 className="rounded-[var(--radius-full)] border border-edge px-7 py-3.5 text-sm font-semibold backdrop-blur-sm transition-colors duration-[var(--duration-fast)] hover:bg-raised"
