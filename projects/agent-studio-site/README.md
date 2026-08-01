@@ -24,6 +24,11 @@ npm run dev             # http://localhost:3000
 | `npm run start` | Serve the production build |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
+| `npm run check:contrast` | Verifies 15 colour pairs against WCAG. Fails on regression |
+
+⚠️ **Run `build` and `typecheck` sequentially, never in parallel.** They race on
+`.next/types` and produce spurious duplicate-identifier errors that look like
+real type failures.
 
 TypeScript is pinned to **6.0.3**. TypeScript 7 is npm `latest` but Next 16
 rejects its compiler API — do not upgrade without checking that first.
@@ -131,6 +136,19 @@ also fails offline.
 
 ---
 
+### Motion components — `src/components/motion/`
+
+| Component | Notes |
+|---|---|
+| `Reveal` / `RevealLines` | The only two entrance primitives. Lines are passed explicitly, not measured — runtime splitting reflows on resize and fights font loading, producing headlines that re-wrap mid-animation |
+| `Magnetic` | Primary CTAs **only**. Works because almost nothing else does it. Wrapper never moves, so layout cannot shift |
+| `Cursor` | Additive ring; the native cursor stays visible. Hiding it breaks the moment a canvas swallows pointer events |
+| `PageTransition` | Cross-fades content, refreshes ScrollTrigger, resets scene state |
+
+All disable themselves for coarse pointers and/or reduced motion.
+
+---
+
 ## Accessibility contract
 
 Non-negotiable, and checked before anything ships:
@@ -156,7 +174,8 @@ These are missing on purpose. Do not fill them with placeholder content.
 | Proof strip, testimonials, client logos | No real ones exist. Fabricated social proof on a page whose job is credibility is self-defeating. `ObjectionsSection` occupies the slot honestly | Supply real metrics and 2–3 quotes |
 | Real workflow in the team graph | The one shipped is illustrative and labelled as such | Supply one real deployed workflow with genuine hand-offs |
 | Legal copy | `src/content/legal.ts` is **template content, not legal advice**, with `[SQUARE BRACKET]` placeholders for facts only you know | Lawyer review |
-| Stripe webhook | Checkout works; fulfilment side is not built | Add `/api/webhooks/stripe` with signature verification |
+| Stripe fulfilment | The webhook exists and verifies signatures, but `onPurchase()` only logs | Implement provisioning, welcome email, CRM record. Must be idempotent — Stripe can deliver an event twice |
+| Hero background video | The `video-producer` agent is built and wired, but the higgsfield account has **0 credits on the free plan**, so no generation is possible | Top up credits, then brief it via `team-lead` |
 
 ---
 
