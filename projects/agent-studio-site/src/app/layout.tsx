@@ -6,6 +6,7 @@ import { SiteFooter } from '@/components/layout/SiteFooter';
 import { Preloader } from '@/components/layout/Preloader';
 import { Cursor } from '@/components/motion/Cursor';
 import { PageTransition } from '@/components/motion/PageTransition';
+import { organizationSchema, websiteSchema } from '@/lib/structured-data';
 import './globals.css';
 
 // Self-hosted at build time by next/font — no runtime request to Google, which
@@ -46,6 +47,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${syne.variable} ${geist.variable} ${geistMono.variable}`}>
       <body>
+        <script
+          type="application/ld+json"
+          // Content is our own typed data, never user input — see structured-data.ts
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema()) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema()) }}
+        />
         <a href="#main" className="skip-link">
           Skip to content
         </a>

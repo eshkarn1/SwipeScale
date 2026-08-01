@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AGENTS, CATEGORY_LABELS, getAgent } from '@/content/agents';
 import { BuyButton } from '@/components/commerce/BuyButton';
+import { agentSchema, faqSchema } from '@/lib/structured-data';
 
 /** Static params so every agent page is prerendered and crawlable. */
 export function generateStaticParams() {
@@ -41,8 +42,21 @@ export default async function AgentDetailPage({
     (a) => a.category === agent.category && a.slug !== agent.slug,
   ).slice(0, 3);
 
+  const faq = faqSchema(agent.faq);
+
   return (
     <article className="mx-auto max-w-[var(--container-page)] px-6 pb-32 pt-36 md:px-12 md:pt-44">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(agentSchema(agent)) }}
+      />
+      {faq && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faq) }}
+        />
+      )}
+
       <nav aria-label="Breadcrumb" className="mb-10 font-mono text-2xs text-text-faint">
         <Link href="/agents" className="hover:text-text">
           Catalog
