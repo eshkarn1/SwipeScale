@@ -3,6 +3,7 @@ import { Syne, Geist, Geist_Mono } from 'next/font/google';
 import { SmoothScrollProvider } from '@/components/providers/SmoothScrollProvider';
 import { SiteNav } from '@/components/layout/SiteNav';
 import { SiteFooter } from '@/components/layout/SiteFooter';
+import { Preloader } from '@/components/layout/Preloader';
 import './globals.css';
 
 // Self-hosted at build time by next/font — no runtime request to Google, which
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <a href="#main" className="skip-link">
           Skip to content
         </a>
+        <Preloader />
         <SmoothScrollProvider>
           <SiteNav />
           <main id="main">{children}</main>
