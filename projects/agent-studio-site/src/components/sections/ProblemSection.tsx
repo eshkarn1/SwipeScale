@@ -1,6 +1,7 @@
 'use client';
 
 import { Reveal, RevealLines } from '@/components/motion/Reveal';
+import { AmbientBackdrop } from '@/components/sections/AmbientBackdrop';
 import { STAGGER } from '@/lib/motion-tokens';
 
 /**
@@ -35,10 +36,13 @@ export function ProblemSection() {
   return (
     <section
       data-beat="problem"
-      className="relative z-10 border-t border-hairline bg-void"
+      className="relative z-10 overflow-hidden border-t border-hairline bg-void"
       aria-labelledby="problem-heading"
     >
-      <div className="mx-auto max-w-[var(--container-page)] px-6 py-32 md:px-12 md:py-40">
+      {/* Ambient field, biased so the left stays black under the heading. */}
+      <AmbientBackdrop clearSide="left" intensity={1.15} />
+
+      <div className="relative mx-auto max-w-[var(--container-page)] px-6 py-32 md:px-12 md:py-40">
         <div className="max-w-[46ch]">
           <Reveal>
             <p className="font-mono text-2xs uppercase tracking-[0.2em] text-accent">
