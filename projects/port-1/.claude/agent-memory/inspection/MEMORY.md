@@ -1,0 +1,2 @@
+- [Node 20 + pnpm combined PATH](env_node20_pnpm.md) — pnpm shim only exists on Node 24's bin dir; PATH must list Node 20 first, Node 24 second
+- [Stray home-dir lockfile warning](env_stray_lockfile.md) — ~/package-lock.json misleads Next's workspace-root detection; fixed via outputFileTracingRoot in next.config.ts, don't touch the home dir file
