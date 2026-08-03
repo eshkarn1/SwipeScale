@@ -52,8 +52,15 @@ const fragmentShader = /* glsl */ `
   uniform float uDensity;
   /** 0 = section backdrop, 1 = hero. Hero adds depth layers and a focal mass. */
   uniform float uHero;
-  /** Shifts the whole field's phase so two sections never look identical. */
-  uniform float uSeed;
+  /**
+   * Where this section sits down the page, in viewport heights.
+   *
+   * This is what makes the whole page share ONE field instead of wearing
+   * several different ones. Each placement samples the same continuous
+   * function, just further along it — so scrolling reads as travelling across
+   * a single surface rather than passing a series of unrelated backdrops.
+   */
+  uniform float uOffsetY;
 
   /**
    * Scalar field.
@@ -63,21 +70,23 @@ const fragmentShader = /* glsl */ `
    * started, so frame N and frame 0 are identical. Use a non-integer
    * multiplier anywhere here and the seam comes back.
    */
-  float field(vec2 p, float t, float seed) {
+  float field(vec2 p, float t) {
     float v = 0.0;
-    v += sin(p.x * 1.7 + sin(t + seed) * 1.3);
-    v += sin(p.y * 2.1 - cos(t + seed) * 1.1);
-    v += sin((p.x + p.y) * 1.15 + sin(t * 2.0 + seed) * 0.7);
-    v += sin(length(p - vec2(1.1, 0.2)) * 2.6 - cos(t * 3.0 + seed) * 0.55);
-    v += sin((p.x - p.y) * 0.9 + sin(t * 2.0 + seed) * 0.4);
+    v += sin(p.x * 1.7 + sin(t) * 1.3);
+    v += sin(p.y * 2.1 - cos(t) * 1.1);
+    v += sin((p.x + p.y) * 1.15 + sin(t * 2.0) * 0.7);
+    v += sin(length(p - vec2(1.1, 0.2)) * 2.6 - cos(t * 3.0) * 0.55);
+    v += sin((p.x - p.y) * 0.9 + sin(t * 2.0) * 0.4);
     return v;
   }
 
   void main() {
-    // Aspect-corrected so the field never stretches on wide viewports.
+    // Aspect-corrected so the field never stretches on wide viewports, then
+    // shifted down the shared field by this section's page position.
     vec2 p = (vUv - 0.5) * vec2(uAspect, 1.0) * uDensity;
+    p.y -= uOffsetY * uDensity;
 
-    float f = field(p, uTime, uSeed);
+    float f = field(p, uTime);
 
     // Thin contour lines through the field. fract() gives evenly spaced
     // isolines; the smoothstep keeps them hairline rather than banded.
@@ -97,7 +106,7 @@ const fragmentShader = /* glsl */ `
     // Two layers at different densities is what turns a flat pattern into
     // something with depth — the same reason the satellites sat behind the
     // core in the previous hero.
-    float back = field(p * 0.45, uTime, uSeed + 2.1);
+    float back = field(p * 0.45 + vec2(2.1, 0.0), uTime);
     float isoB = abs(fract(back * 0.5) - 0.5) * 2.0;
     float lineB = (1.0 - smoothstep(0.0, 0.16, isoB)) * 0.5;
 
@@ -121,9 +130,14 @@ const fragmentShader = /* glsl */ `
     float x = mix(vUv.x, 1.0 - vUv.x, uClearSide);
     float clear = smoothstep(0.34, 0.88, x);
 
-    // Soft vertical falloff so the band blends into the sections above and
-    // below rather than ending on a hard edge.
-    float vert = smoothstep(0.0, 0.28, vUv.y) * (1.0 - smoothstep(0.72, 1.0, vUv.y));
+    // Deliberately a very gentle vertical falloff.
+    //
+    // It started at smoothstep(0, 0.28) / (0.72, 1.0), which faded every
+    // section out at its own top and bottom — so each one visibly began and
+    // ended, which is exactly what made the page read as separate backdrops
+    // rather than one surface. Only the outermost few percent are touched now,
+    // just enough to hide the plane edge.
+    float vert = smoothstep(0.0, 0.06, vUv.y) * (1.0 - smoothstep(0.94, 1.0, vUv.y));
 
     float a = (line + line2 + wash) * clear * vert * uIntensity;
 
@@ -133,49 +147,60 @@ const fragmentShader = /* glsl */ `
   }
 `;
 
+/**
+ * Shared constants.
+ *
+ * Density and clear side are deliberately NOT per-section props any more.
+ * Varying them made every section look like a different background — the page
+ * read as five designs rather than one. The only thing that varies per
+ * placement is where it sits in the shared field.
+ */
+const DENSITY_HIGH = 2.4;
+const DENSITY_LOW = 1.9;
+/** Every heading on this site is left-aligned, so the clear side never changes. */
+const CLEAR_SIDE = 0;
+
 interface AmbientFieldProps {
-  /** Which side stays black for copy. */
-  clearSide?: 'left' | 'right';
-  /** Overall brightness. Keep low — this sits behind text. */
-  intensity?: number;
+  /**
+   * Distance down the page in viewport heights. Sections sample one continuous
+   * field at their own offset, which is what makes the page feel like a single
+   * surface rather than a set of separate backdrops.
+   */
+  offsetY?: number;
   /** Hero adds a second depth layer and a focal mass. */
   variant?: 'section' | 'hero';
   /**
-   * Phase offset. Two sections with the same seed animate identically, which
-   * reads as a repeated asset rather than one continuous system — give each
-   * placement its own.
+   * Brightness. The one intentional per-section control, because a heading
+   * over open space and a four-column grid genuinely need different weights.
+   * Keep the range narrow or the sections stop matching again.
    */
-  seed?: number;
-  /** Scale of the pattern. Lower means larger, calmer forms. */
-  density?: number;
+  intensity?: number;
 }
 
 export function AmbientField({
-  clearSide = 'left',
-  intensity = 0.5,
+  offsetY = 0,
   variant = 'section',
-  seed = 0,
-  density,
+  intensity = 1,
 }: AmbientFieldProps) {
   const profile = useTier();
   const materialRef = useRef<ShaderMaterial>(null);
   const elapsed = useRef(0);
 
-  const uniforms = useMemo(() => {
-    // Fewer lines on weak hardware — the fragment cost is per pixel.
-    const base = profile.tier === 'high' ? 3.2 : 2.4;
-    return {
+  const uniforms = useMemo(
+    () => ({
       uTime: { value: 0 },
       uAspect: { value: 1.6 },
       uAccent: { value: new Vector3(0.796, 1.0, 0.302) }, // #CBFF4D linearised
       uIntensity: { value: intensity },
-      uClearSide: { value: clearSide === 'left' ? 0 : 1 },
-      uDensity: { value: density ?? base },
+      uClearSide: { value: CLEAR_SIDE },
+      // Fewer lines on weak hardware — the fragment cost is per pixel.
+      uDensity: { value: profile.tier === 'high' ? DENSITY_HIGH : DENSITY_LOW },
       uHero: { value: variant === 'hero' ? 1 : 0 },
-      uSeed: { value: seed },
+      uOffsetY: { value: offsetY },
       uResolution: { value: new Vector2(1, 1) },
-    };
-  }, [clearSide, intensity, profile.tier, variant, seed, density]);
+    }),
+    [intensity, profile.tier, variant, offsetY],
+  );
 
   useFrame((state, delta) => {
     const mat = materialRef.current;

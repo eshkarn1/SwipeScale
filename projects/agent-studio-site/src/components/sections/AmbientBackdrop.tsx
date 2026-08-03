@@ -15,19 +15,23 @@ import { AmbientField } from '@/components/canvas/AmbientField';
  * so this costs a fragment shader and nothing else.
  */
 export function AmbientBackdrop({
-  clearSide = 'left',
-  intensity = 0.5,
+  offsetY = 0,
+  intensity = 1,
   variant = 'section',
-  seed = 0,
-  density,
   className = '',
 }: {
-  clearSide?: 'left' | 'right';
+  /**
+   * Distance down the page in viewport heights — 0 for the hero, then roughly
+   * one per section below it. Sections share one continuous field and sample
+   * it at their own offset, so the page reads as a single surface.
+   *
+   * These are hand-set rather than measured from the DOM on purpose: a
+   * measured value changes with content length and would make the backdrop
+   * shift whenever copy is edited.
+   */
+  offsetY?: number;
   intensity?: number;
   variant?: 'section' | 'hero';
-  /** Give every placement a different seed — see AmbientField. */
-  seed?: number;
-  density?: number;
   className?: string;
 }) {
   return (
@@ -36,13 +40,7 @@ export function AmbientBackdrop({
       ariaLabel=""
       fallback={<div className="absolute inset-0" />}
     >
-      <AmbientField
-        clearSide={clearSide}
-        intensity={intensity}
-        variant={variant}
-        seed={seed}
-        density={density}
-      />
+      <AmbientField offsetY={offsetY} intensity={intensity} variant={variant} />
     </SceneCanvas>
   );
 }

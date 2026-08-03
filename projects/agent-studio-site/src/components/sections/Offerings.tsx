@@ -24,7 +24,7 @@ export function Offerings() {
     >
       {/* Clear-side right: this section's heading sits left, so the field is
           pushed the other way from the problem section above it. */}
-      <AmbientBackdrop clearSide="left" intensity={0.85} seed={2.8} density={2.1} />
+      <AmbientBackdrop offsetY={0.6} intensity={1.05} />
 
       <div className="relative mx-auto max-w-[var(--container-page)] px-6 py-32 md:px-12 md:py-40">
       <div className="max-w-[46ch]">

@@ -40,7 +40,7 @@ export function ProblemSection() {
       aria-labelledby="problem-heading"
     >
       {/* Ambient field, biased so the left stays black under the heading. */}
-      <AmbientBackdrop clearSide="left" intensity={1.15} seed={1.4} />
+      <AmbientBackdrop offsetY={0.3} intensity={1.05} />
 
       <div className="relative mx-auto max-w-[var(--container-page)] px-6 py-32 md:px-12 md:py-40">
         <div className="max-w-[46ch]">

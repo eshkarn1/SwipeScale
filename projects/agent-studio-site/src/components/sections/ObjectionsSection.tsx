@@ -44,7 +44,7 @@ export function ObjectionsSection() {
     >
       {/* Lowest intensity on the page: this section is dense Q&A text across
           the full width, so the field stays a suggestion rather than a texture. */}
-      <AmbientBackdrop clearSide="left" intensity={0.5} seed={5.9} density={1.9} />
+      <AmbientBackdrop offsetY={1.2} intensity={1.05} />
 
       <div className="relative mx-auto max-w-[var(--container-page)] px-6 py-32 md:px-12 md:py-40">
         <div className="grid gap-16 lg:grid-cols-[0.85fr_1.15fr]">

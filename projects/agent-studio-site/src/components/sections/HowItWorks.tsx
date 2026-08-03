@@ -22,7 +22,7 @@ export function HowItWorks() {
     >
       {/* Calmer and larger-scale than the sections around it — this one has a
           four-column grid over it and needs the quietest backdrop. */}
-      <AmbientBackdrop clearSide="left" intensity={0.7} seed={4.2} density={1.7} />
+      <AmbientBackdrop offsetY={0.9} intensity={1.05} />
 
       <div className="relative mx-auto max-w-[var(--container-page)] px-6 py-32 md:px-12 md:py-40">
         <div className="max-w-[46ch]">

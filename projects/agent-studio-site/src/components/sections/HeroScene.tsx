@@ -24,13 +24,7 @@ export function HeroScene() {
     >
       {/* Hero variant: a second depth layer plus a focal mass, so this reads
           as the anchor of the page rather than as another section backdrop. */}
-      <AmbientBackdrop
-        variant="hero"
-        clearSide="left"
-        intensity={1.25}
-        seed={0}
-        density={2.6}
-      />
+      <AmbientBackdrop variant="hero" offsetY={0} intensity={1.25} />
 
       {/* Scrim. Vertical on mobile where the copy is full-width, horizontal
           from md where it sits in the left column.
