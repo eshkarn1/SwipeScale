@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { OFFERINGS } from '@/content/offerings';
 import { Reveal, RevealLines } from '@/components/motion/Reveal';
+import { AmbientBackdrop } from '@/components/sections/AmbientBackdrop';
 import { STAGGER } from '@/lib/motion-tokens';
 
 /**
@@ -18,9 +19,14 @@ export function Offerings() {
     <section
       id="offerings"
       data-beat="offerings"
-      className="relative z-10 mx-auto max-w-[var(--container-page)] px-6 py-32 md:px-12 md:py-40"
+      className="relative z-10 overflow-hidden"
       aria-labelledby="offerings-heading"
     >
+      {/* Clear-side right: this section's heading sits left, so the field is
+          pushed the other way from the problem section above it. */}
+      <AmbientBackdrop clearSide="left" intensity={0.85} seed={2.8} density={2.1} />
+
+      <div className="relative mx-auto max-w-[var(--container-page)] px-6 py-32 md:px-12 md:py-40">
       <div className="max-w-[46ch]">
         <Reveal>
           <p className="font-mono text-2xs uppercase tracking-[0.2em] text-accent">
@@ -66,7 +72,8 @@ export function Offerings() {
             </Reveal>
           </li>
         ))}
-      </ul>
+        </ul>
+      </div>
     </section>
   );
 }

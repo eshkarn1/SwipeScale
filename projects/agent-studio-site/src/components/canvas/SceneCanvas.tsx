@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { gsap } from 'gsap';
 import {
@@ -31,15 +31,22 @@ export function useTier(): TierProfile {
  * timelines, and the rendered frame all resolve from one clock, in order,
  * within a single frame. See the long note in SmoothScrollProvider.
  */
-function CanvasTicker() {
+function CanvasTicker({ visible }: { visible: React.RefObject<boolean> }) {
   const advance = useThree((state) => state.advance);
 
   useEffect(() => {
-    // GSAP reports elapsed seconds; R3F's advance expects a ms timestamp.
-    const tick = (time: number) => advance(time * 1000);
+    const tick = (time: number) => {
+      // Skip entirely when the canvas is off screen. With several ambient
+      // fields on one page, every one of them would otherwise render a
+      // full-screen fragment shader on every frame while nobody is looking at
+      // it — the single biggest waste in a multi-canvas page.
+      if (!visible.current) return;
+      // GSAP reports elapsed seconds; R3F's advance expects a ms timestamp.
+      advance(time * 1000);
+    };
     gsap.ticker.add(tick);
     return () => gsap.ticker.remove(tick);
-  }, [advance]);
+  }, [advance, visible]);
 
   return null;
 }
@@ -65,6 +72,9 @@ export function SceneCanvas({ children, fallback, className, ariaLabel }: SceneC
   // and first client render identical and avoiding a hydration mismatch.
   const [profile, setProfile] = useState<TierProfile | null>(null);
   const [reduced, setReduced] = useState(false);
+  const hostRef = useRef<HTMLDivElement>(null);
+  // A ref, not state: this changes on scroll and must never re-render.
+  const visible = useRef(true);
 
   useEffect(() => {
     setProfile(TIER_PROFILES[detectDeviceTier()]);
@@ -76,12 +86,32 @@ export function SceneCanvas({ children, fallback, className, ariaLabel }: SceneC
     return () => query.removeEventListener('change', onChange);
   }, []);
 
+  // Pause rendering while off screen. rootMargin gives a screen of lead-in so
+  // a field is already running by the time it scrolls into view rather than
+  // starting from its first frame in front of the visitor.
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        visible.current = entry.isIntersecting;
+      },
+      { rootMargin: '100% 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [profile]);
+
   if (!profile || profile.tier === 'none') {
-    return <div className={className}>{fallback}</div>;
+    return (
+      <div ref={hostRef} className={className}>
+        {fallback}
+      </div>
+    );
   }
 
   return (
-    <div className={className} aria-hidden="true" data-tier={profile.tier} data-reduced={reduced}>
+    <div ref={hostRef} className={className} aria-hidden="true" data-tier={profile.tier} data-reduced={reduced}>
       <Canvas
         // Never R3F's own loop — see CanvasTicker.
         frameloop="never"
@@ -94,7 +124,7 @@ export function SceneCanvas({ children, fallback, className, ariaLabel }: SceneC
         }}
         camera={{ fov: 35, near: 0.1, far: 100, position: [0, 0, 8] }}
       >
-        <CanvasTicker />
+        <CanvasTicker visible={visible} />
         <TierContext.Provider value={profile}>{children}</TierContext.Provider>
       </Canvas>
       <span className="sr-only">{ariaLabel}</span>

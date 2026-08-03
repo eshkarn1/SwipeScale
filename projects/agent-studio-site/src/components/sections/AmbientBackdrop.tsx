@@ -17,10 +17,17 @@ import { AmbientField } from '@/components/canvas/AmbientField';
 export function AmbientBackdrop({
   clearSide = 'left',
   intensity = 0.5,
+  variant = 'section',
+  seed = 0,
+  density,
   className = '',
 }: {
   clearSide?: 'left' | 'right';
   intensity?: number;
+  variant?: 'section' | 'hero';
+  /** Give every placement a different seed — see AmbientField. */
+  seed?: number;
+  density?: number;
   className?: string;
 }) {
   return (
@@ -29,7 +36,13 @@ export function AmbientBackdrop({
       ariaLabel=""
       fallback={<div className="absolute inset-0" />}
     >
-      <AmbientField clearSide={clearSide} intensity={intensity} />
+      <AmbientField
+        clearSide={clearSide}
+        intensity={intensity}
+        variant={variant}
+        seed={seed}
+        density={density}
+      />
     </SceneCanvas>
   );
 }

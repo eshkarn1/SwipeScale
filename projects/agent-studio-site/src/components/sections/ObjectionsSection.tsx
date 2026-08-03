@@ -1,6 +1,7 @@
 'use client';
 
 import { Reveal, RevealLines } from '@/components/motion/Reveal';
+import { AmbientBackdrop } from '@/components/sections/AmbientBackdrop';
 import { STAGGER } from '@/lib/motion-tokens';
 
 /**
@@ -38,10 +39,14 @@ export function ObjectionsSection() {
   return (
     <section
       data-beat="evidence"
-      className="relative z-10 border-t border-hairline bg-void"
+      className="relative z-10 overflow-hidden border-t border-hairline bg-void"
       aria-labelledby="objections-heading"
     >
-      <div className="mx-auto max-w-[var(--container-page)] px-6 py-32 md:px-12 md:py-40">
+      {/* Lowest intensity on the page: this section is dense Q&A text across
+          the full width, so the field stays a suggestion rather than a texture. */}
+      <AmbientBackdrop clearSide="left" intensity={0.5} seed={5.9} density={1.9} />
+
+      <div className="relative mx-auto max-w-[var(--container-page)] px-6 py-32 md:px-12 md:py-40">
         <div className="grid gap-16 lg:grid-cols-[0.85fr_1.15fr]">
           <div className="max-w-[38ch] lg:sticky lg:top-32 lg:self-start">
             <Reveal>

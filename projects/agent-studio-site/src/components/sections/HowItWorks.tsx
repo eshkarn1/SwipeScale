@@ -2,6 +2,7 @@
 
 import { PROCESS } from '@/content/offerings';
 import { Reveal, RevealLines } from '@/components/motion/Reveal';
+import { AmbientBackdrop } from '@/components/sections/AmbientBackdrop';
 import { STAGGER } from '@/lib/motion-tokens';
 
 /**
@@ -16,10 +17,14 @@ export function HowItWorks() {
     <section
       id="how-it-works"
       data-beat="process"
-      className="relative z-10 border-t border-hairline"
+      className="relative z-10 overflow-hidden border-t border-hairline"
       aria-labelledby="process-heading"
     >
-      <div className="mx-auto max-w-[var(--container-page)] px-6 py-32 md:px-12 md:py-40">
+      {/* Calmer and larger-scale than the sections around it — this one has a
+          four-column grid over it and needs the quietest backdrop. */}
+      <AmbientBackdrop clearSide="left" intensity={0.7} seed={4.2} density={1.7} />
+
+      <div className="relative mx-auto max-w-[var(--container-page)] px-6 py-32 md:px-12 md:py-40">
         <div className="max-w-[46ch]">
           <Reveal>
             <p className="font-mono text-2xs uppercase tracking-[0.2em] text-accent">
