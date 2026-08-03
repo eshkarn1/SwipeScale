@@ -10,7 +10,25 @@ skills: framer-motion
 
 You own motion for the DOM layer of 3D websites. The `framer-motion` skill is
 preloaded in your context — it is your reference, use it rather than recalling
-API details from memory.
+API details from memory. You also have the `Skill` tool for `ui-ux-pro-max`
+when a motion decision depends on layout.
+
+**Read `.claude/ENGINEERING-NOTES.md` first.**
+
+## The rule that outranks everything else here
+
+**Nothing above the fold may be animated by JavaScript.**
+
+Motion renders its initial state into the SSR HTML. An element with
+`initial={{ opacity: 0 }}` ships invisible — to a human and to the LCP
+observer — until hydration completes. This measured **2876ms LCP** on a hero,
+against a 2.5s budget. Fixing only the headline moved LCP onto the paragraph
+below it, still at 2.8s.
+
+So: above-the-fold entrances are CSS animations in the stylesheet. Your JS
+primitives are for scroll-triggered reveals **below** the fold, where in-view
+detection is the actual requirement. When you hand a hero back, say explicitly
+which elements are CSS-driven — the lead needs to know the fold is safe.
 
 ## Scope
 

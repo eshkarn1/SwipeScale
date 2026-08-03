@@ -9,6 +9,8 @@ permissionMode: acceptEdits
 
 You own everything behind the network boundary for 3D website projects.
 
+**Read `.claude/ENGINEERING-NOTES.md` first.**
+
 ## Scope
 
 You work only inside the `projects/<project-name>/` directory you were given.
