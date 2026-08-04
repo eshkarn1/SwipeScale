@@ -34,10 +34,18 @@ pnpm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Generated placeholder frame sequences (spec §9 placeholder protocol).
-# ~2MB of throwaway WebP that Script 3 replaces with real frames. Regenerate
-# with: python3 scripts/gen-placeholder-frames.py
-# The generator IS tracked; its output is not.
-/public/seq/*
-# ...but the asset contract Script 3 has to read must survive.
-!/public/seq/README.md
+# Frame sequences are now REAL assets, not §9 placeholders, so they are
+# tracked — the site cannot render without them and there is no build step
+# that would produce them at deploy time.
+#
+# They come from scripts/render-frames.py, which is deterministic, and are
+# proven by scripts/verify-frames.py. 904 WebP, ~4.7MB.
+#
+# What stays ignored: iCloud conflict forks. This repo sits on a synced
+# Desktop, and re-rendering races the sync daemon, which restores the files it
+# just saw deleted under a duplicate name — `frame_0090 2.webp` beside
+# `frame_0090.webp`. 706 of them (3.9MB of stale placeholder) were committed
+# to nothing once already. render-frames.py prunes them and verify-frames.py
+# fails on them; this is the third guard.
+/public/seq/**/* [0-9].webp
+/public/seq/**/*\ [0-9].webp
