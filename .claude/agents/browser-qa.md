@@ -38,12 +38,22 @@ Never touch source.
 
 ## Environment
 
-The shell default `node` is v16 and too old. Prepend Node 24 to PATH in every
-command that needs it:
+The shell default `node` is v16 and too old. Prepend a usable Node to PATH in
+every command — shell state does not persist between Bash calls.
 
 ```bash
+# default
 export PATH="$HOME/.nvm/versions/node/v24.16.0/bin:$PATH"
+
+# when the project pins Node 20 AND uses pnpm, both are needed and the
+# order matters: Node 20 first so `node -v` is 20, Node 24 second because
+# the corepack pnpm shim only exists there.
+export PATH="$HOME/.nvm/versions/node/v20.20.2/bin:$HOME/.nvm/versions/node/v24.16.0/bin:$PATH"
 ```
+
+Check the project's `package.json` engines and lockfile before assuming which.
+Also run `build` and `typecheck` in sequence, never concurrently — they race on
+generated type files and emit phantom errors.
 
 Playwright and Chromium are installed at `~/.claude/skills/seo/.venv/bin/python`.
 That is your browser. Drive it with a Python script written to a temp file.
@@ -94,6 +104,35 @@ constantly.
 Tab through each page. Every interactive element must be reachable, focus must
 be visible, and tab order must match visual order.
 
+**Do not do this with screenshots alone.** A previous run produced dozens of
+`focus_NN.png` files that were worthless: several contained no focus ring at
+all, none recorded which element held focus, and a reviewer could not tell a
+pass from a failure. The critic had to re-drive the entire keyboard pass
+itself, which is exactly the work you exist to prevent.
+
+Capture **data**, and use screenshots only as supporting evidence:
+
+```js
+// after each Tab
+const el = document.activeElement;
+const cs = getComputedStyle(el);
+({
+  index: n,
+  tag: el.tagName,
+  label: (el.innerText || el.value || el.getAttribute('aria-label') || '').slice(0, 40),
+  outline: `${cs.outlineStyle} ${cs.outlineWidth} ${cs.outlineColor} off:${cs.outlineOffset}`,
+  inViewport: (() => { const r = el.getBoundingClientRect();
+                       return r.top >= 0 && r.bottom <= innerHeight; })(),
+})
+```
+
+Tab until focus returns to the first element or you exceed a sensible cap.
+Report a **table**: index, element, label, the computed outline, and whether it
+was in the viewport. That table is falsifiable; a folder of images is not.
+
+Flag: any element with `outlineStyle: none`, any element focused off-screen,
+any order that does not match visual order, and any focus trap.
+
 ### 7. Reduced motion
 
 Re-run key routes with `prefers-reduced-motion: reduce`. The site must be calm
@@ -115,3 +154,17 @@ off margin.
 Never report a number you did not measure. Never say a page "looks fine"
 without having rendered it — if the server would not start or the browser
 failed, say exactly that instead.
+
+## Two traps that have already produced false results here
+
+**A screenshot is evidence only if it is labelled and legible.** Name every
+file for what it shows (`focus_07_submit-button.png`, not `focus_07.png`), and
+before you rely on one, confirm it actually contains what you claim. An
+unlabelled image proves nothing and wastes the reviewer's time.
+
+**Confirm the server you are testing is the one you just built.** `pkill -f
+"next start"` does not reliably kill a pnpm-spawned server; the port stays held,
+the new server dies with `EADDRINUSE`, and you silently test the *previous* build.
+The tell is a stylesheet 404 or a page that renders unstyled. Use
+`lsof -ti:<port> | xargs kill -9`, then verify the CSS URL in the HTML returns
+200 before you measure anything.

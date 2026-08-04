@@ -75,6 +75,14 @@ Applies to every agent, without exception.
 - **Never run `npm run build` and `npm run typecheck` concurrently.** They race
   on `.next/types` and emit phantom duplicate-identifier errors that look like
   real type failures. Run them in sequence.
+- **`pkill -f "next start"` does not reliably kill a pnpm-spawned server.** The
+  port stays held, the replacement dies with `EADDRINUSE`, and you go on
+  measuring the *previous* build without noticing. The tell is a stylesheet 404
+  or a page that renders unstyled — which looks exactly like you broke the CSS.
+  Use `lsof -ti:<port> | xargs kill -9`, then confirm the CSS URL in the HTML
+  returns 200 before trusting a single measurement.
+- **Pillow is not in the system python3 here.** Scripts needing it run with
+  `~/.claude/skills/seo/.venv/bin/python`, which also has Playwright.
 
 ---
 
