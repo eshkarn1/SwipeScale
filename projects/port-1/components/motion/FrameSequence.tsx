@@ -2,7 +2,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { clearFrameState, getSequence, pickWidth, publishFrameState } from "@/lib/sequences";
+import {
+  clearFrameState,
+  getSequence,
+  isDominant,
+  pickWidth,
+  publishFrameState,
+  registerDominance,
+  sequenceOrder,
+  subscribeDominance,
+} from "@/lib/sequences";
 import { coverFit } from "./useCoverFit";
 import { useFrameLoader } from "./useFrameLoader";
 import type { CoverFitRect, FrameSequenceProps } from "./types";
@@ -11,6 +20,64 @@ const LOOP_FPS = 24;
 
 function clamp01(value: number): number {
   return value < 0 ? 0 : value > 1 ? 1 : value;
+}
+
+/* ------------------------------------------------------------------ *
+ * First-paint gate for the frame loader.
+ *
+ * The hero is in view at load, so its IntersectionObserver resolves
+ * immediately and 180 WebP requests (~970 KB) used to start while the document
+ * was still being painted and hydrated. Lighthouse attributed nearly all of a
+ * 2.9s LCP render delay to that contention.
+ *
+ * Nothing is missing on screen in the meantime: the poster is already in the
+ * SSR HTML with fetchPriority="high" and the canvas draws over it once frames
+ * decode. This gate is one-shot and module-wide — once the page has painted
+ * and gone idle, every later sequence loads the moment its own observer fires,
+ * so the off-screen case sequences keep their existing in-view gating.
+ * ------------------------------------------------------------------ */
+
+const IDLE_TIMEOUT_MS = 2000;
+const IDLE_FALLBACK_MS = 1200;
+
+let idleReached = false;
+let idleScheduled = false;
+const idleWaiters = new Set<() => void>();
+
+function releaseIdle(): void {
+  if (idleReached) return;
+  idleReached = true;
+  for (const waiter of idleWaiters) waiter();
+  idleWaiters.clear();
+}
+
+function scheduleIdleRelease(): void {
+  if (idleScheduled || typeof window === "undefined") return;
+  idleScheduled = true;
+  // Two frames put us safely past first paint; requestIdleCallback then waits
+  // for the main thread to actually be free, with its own timeout as a floor.
+  // setTimeout is the fallback for browsers without requestIdleCallback.
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      if (typeof window.requestIdleCallback === "function") {
+        window.requestIdleCallback(releaseIdle, { timeout: IDLE_TIMEOUT_MS });
+      } else {
+        window.setTimeout(releaseIdle, IDLE_FALLBACK_MS);
+      }
+    });
+  });
+}
+
+function onFirstIdle(callback: () => void): () => void {
+  if (idleReached) {
+    callback();
+    return () => {};
+  }
+  idleWaiters.add(callback);
+  scheduleIdleRelease();
+  return () => {
+    idleWaiters.delete(callback);
+  };
 }
 
 export default function FrameSequence({
@@ -28,9 +95,20 @@ export default function FrameSequence({
 
   const [inView, setInView] = useState(priority);
   const [reduced, setReduced] = useState(false);
+  const [painted, setPainted] = useState(false);
   const [renditionWidth, setRenditionWidth] = useState(() => manifest.widths[0] ?? 1440);
 
-  const { framesRef, ready } = useFrameLoader(manifest, renditionWidth, inView && !reduced);
+  const { framesRef, ready } = useFrameLoader(
+    manifest,
+    renditionWidth,
+    painted && inView && !reduced,
+  );
+
+  /** true while the rAF loop below owns the readout for this sequence */
+  const drawing = !reduced && inView && ready;
+
+  // ---- hold the frame load until the document has painted --------------
+  useEffect(() => onFirstIdle(() => setPainted(true)), []);
 
   // ---- reduced motion ------------------------------------------------
   useEffect(() => {
@@ -70,21 +148,50 @@ export default function FrameSequence({
     return () => observer.disconnect();
   }, [manifest]);
 
-  // ---- reduced motion: publish the poster frame, draw nothing ---------
+  // ---- dominance: exactly one sequence owns the readout ----------------
+  // Registered for the whole mounted lifetime, not just while in view — the
+  // arbiter decides what "in view" means for the readout, and `measure`
+  // returning null is how a sequence declines to compete.
   useEffect(() => {
-    if (!reduced || !inView) return;
-    publishFrameState({
-      id: manifest.id,
-      label: manifest.label,
-      frame: manifest.posterFrame,
-      total: manifest.frameCount,
+    return registerDominance(manifest.id, {
+      order: sequenceOrder(manifest.id),
+      measure: () => {
+        const wrapper = wrapperRef.current;
+        if (!wrapper) return null;
+        const rect = wrapper.getBoundingClientRect();
+        const viewport = window.innerHeight;
+        if (rect.height <= 0 || rect.bottom <= 0 || rect.top >= viewport) return null;
+        return Math.abs((rect.top + rect.bottom) / 2 - viewport / 2);
+      },
     });
+  }, [manifest]);
+
+  // ---- whenever the draw loop is not running, the poster frame stands in.
+  // Covers reduced motion (which draws nothing at all) and the window between
+  // the document painting and the first frames decoding.
+  useEffect(() => {
+    if (drawing) return;
+    const sync = () => {
+      if (!isDominant(manifest.id)) return;
+      publishFrameState({
+        id: manifest.id,
+        label: manifest.label,
+        frame: manifest.posterFrame,
+        total: manifest.frameCount,
+      });
+    };
+    sync();
+    return subscribeDominance(sync);
+  }, [drawing, manifest]);
+
+  // ---- never leave a stale readout behind ------------------------------
+  useEffect(() => {
     return () => clearFrameState(manifest.id);
-  }, [reduced, inView, manifest]);
+  }, [manifest]);
 
   // ---- draw loop -------------------------------------------------------
   useEffect(() => {
-    if (reduced || !inView || !ready) return;
+    if (!drawing) return;
     const canvas = canvasRef.current;
     const wrapper = wrapperRef.current;
     if (!canvas || !wrapper) return;
@@ -125,12 +232,6 @@ export default function FrameSequence({
       coverFit(cssWidth, cssHeight, manifest.aspect, fit);
       context.clearRect(0, 0, cssWidth, cssHeight);
       context.drawImage(image, fit.dx, fit.dy, fit.dw, fit.dh);
-      publishFrameState({
-        id: manifest.id,
-        label: manifest.label,
-        frame: index + 1,
-        total,
-      });
     };
 
     const nearest = (index: number) => {
@@ -167,7 +268,20 @@ export default function FrameSequence({
       }
 
       const resolved = framesRef.current[index] ? index : nearest(index);
-      if (resolved >= 0) paint(resolved);
+      if (resolved < 0) return;
+      paint(resolved);
+      // Publishing sits outside `paint` deliberately: `paint` short-circuits
+      // when the index has not moved, and a sequence that has just won
+      // dominance at a static scroll position must still be able to claim the
+      // readout. `publishFrameState` dedupes by value, so this is cheap.
+      if (isDominant(manifest.id)) {
+        publishFrameState({
+          id: manifest.id,
+          label: manifest.label,
+          frame: resolved + 1,
+          total,
+        });
+      }
     };
 
     raf = requestAnimationFrame(tick);
@@ -180,7 +294,7 @@ export default function FrameSequence({
       canvas.height = 0;
       clearFrameState(manifest.id);
     };
-  }, [activeMode, framesRef, inView, manifest, ready, reduced, scrubTargetId]);
+  }, [activeMode, drawing, framesRef, manifest, scrubTargetId]);
 
   return (
     <div

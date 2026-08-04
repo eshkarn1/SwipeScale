@@ -179,3 +179,136 @@ export function getFrameState(): FrameState | null {
 export function getServerFrameState(): FrameState | null {
   return null;
 }
+
+/* ------------------------------------------------------------------ *
+ * Dominance arbitration.
+ *
+ * Two work cases are on screen at once wherever their sections meet, and every
+ * mounted, playing sequence used to write to the store on its own animation
+ * frame. The readout therefore interleaved two sequences at a *static* scroll
+ * position. The store was never the bug; the missing arbitration was.
+ *
+ * Exactly one candidate owns the readout: the in-viewport one whose centre is
+ * nearest the viewport centre, ties broken by document order. A non-dominant
+ * sequence must not write to the store at all — that check lives at each call
+ * site, so `publishFrameState` keeps its shape.
+ *
+ * Dominance can only change when the page scrolls, when layout resizes, or
+ * when a sequence mounts or unmounts, so this listens for exactly those rather
+ * than re-measuring every frame.
+ * ------------------------------------------------------------------ */
+
+export interface DominanceCandidate {
+  /** document order; the lower value wins a tie */
+  order: number;
+  /**
+   * Distance in CSS px from the candidate's centre to the viewport centre,
+   * or `null` when the candidate is not intersecting the viewport at all.
+   */
+  measure: () => number | null;
+}
+
+/**
+ * px a challenger must beat the incumbent by before it takes the readout.
+ * Without it, two candidates straddling the crossover point swap on alternate
+ * frames while scrolling and the readout flickers.
+ */
+const DOMINANCE_MARGIN = 24;
+
+const candidates = new Map<SequenceId, DominanceCandidate>();
+const dominanceListeners = new Set<() => void>();
+let dominant: SequenceId | null = null;
+let recomputeQueued = false;
+let listening = false;
+
+const SEQUENCE_ORDER = Object.keys(SEQUENCES) as SequenceId[];
+
+/** Document order of a sequence. `SEQUENCES` is declared in page order. */
+export function sequenceOrder(id: SequenceId): number {
+  const index = SEQUENCE_ORDER.indexOf(id);
+  return index === -1 ? SEQUENCE_ORDER.length : index;
+}
+
+function emitDominance(): void {
+  for (const listener of dominanceListeners) listener();
+}
+
+function recomputeDominance(): void {
+  let nextId: SequenceId | null = null;
+  let nextDistance = Number.POSITIVE_INFINITY;
+  let nextOrder = Number.POSITIVE_INFINITY;
+  let incumbentDistance = Number.POSITIVE_INFINITY;
+
+  for (const [id, candidate] of candidates) {
+    const distance = candidate.measure();
+    if (distance === null) continue;
+    if (id === dominant) incumbentDistance = distance;
+    if (distance < nextDistance || (distance === nextDistance && candidate.order < nextOrder)) {
+      nextId = id;
+      nextDistance = distance;
+      nextOrder = candidate.order;
+    }
+  }
+
+  if (nextId === dominant) return;
+  // The incumbent keeps the readout unless the challenger is clearly closer.
+  // An incumbent that has left the viewport measured `Infinity` and always loses.
+  if (nextDistance > incumbentDistance - DOMINANCE_MARGIN) return;
+
+  const previous = dominant;
+  dominant = nextId;
+  // The old holder no longer owns the readout. `clearFrameState` is a no-op if
+  // someone else already took it; the new holder republishes on its next frame.
+  if (previous !== null) clearFrameState(previous);
+  emitDominance();
+}
+
+export function requestDominanceRecompute(): void {
+  if (recomputeQueued || typeof window === "undefined") return;
+  recomputeQueued = true;
+  window.requestAnimationFrame(() => {
+    recomputeQueued = false;
+    recomputeDominance();
+  });
+}
+
+function startListening(): void {
+  if (listening || typeof window === "undefined") return;
+  listening = true;
+  window.addEventListener("scroll", requestDominanceRecompute, { passive: true });
+  window.addEventListener("resize", requestDominanceRecompute, { passive: true });
+}
+
+function stopListening(): void {
+  if (!listening || typeof window === "undefined") return;
+  listening = false;
+  window.removeEventListener("scroll", requestDominanceRecompute);
+  window.removeEventListener("resize", requestDominanceRecompute);
+}
+
+/** Returns the deregistration function. */
+export function registerDominance(id: SequenceId, candidate: DominanceCandidate): () => void {
+  candidates.set(id, candidate);
+  startListening();
+  requestDominanceRecompute();
+  return () => {
+    candidates.delete(id);
+    if (dominant === id) {
+      dominant = null;
+      emitDominance();
+    }
+    if (candidates.size === 0) stopListening();
+    else requestDominanceRecompute();
+  };
+}
+
+export function isDominant(id: SequenceId): boolean {
+  return dominant === id;
+}
+
+export function subscribeDominance(callback: () => void): () => void {
+  dominanceListeners.add(callback);
+  return () => {
+    dominanceListeners.delete(callback);
+  };
+}

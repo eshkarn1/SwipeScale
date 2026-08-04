@@ -60,6 +60,9 @@ export function useFrameLoader(
         const image = new Image();
         pending.add(image);
         image.decoding = "async";
+        // Frames are never the LCP candidate — the poster is. Keep a 180-image
+        // sequence from queueing ahead of fonts, CSS or the deferred GSAP chunk.
+        image.setAttribute("fetchpriority", "low");
         image.onload = () => {
           pending.delete(image);
           settle(index, image);

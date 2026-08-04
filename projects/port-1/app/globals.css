@@ -42,10 +42,22 @@
   }
 
   html {
-    /* Native smooth scroll for anchor navigation. No scroll hijacking,
-       no smooth-scroll library. */
-    scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
+  }
+
+  /* Native smooth scroll, on anchors only — spec §2. No scroll hijacking, no
+     smooth-scroll library.
+
+     Setting `scroll-behavior: smooth` unconditionally on <html> also animates
+     the scroll that sequential focus navigation performs, so a single Tab press
+     spent over a second travelling down the page. `:has(:target)` matches only
+     once a fragment has actually been navigated to, which leaves Tab-driven
+     scrolling instant. `#main` is the skip link's destination and must jump
+     rather than glide, so it is excluded. */
+  @media (prefers-reduced-motion: no-preference) {
+    html:has(:target):not(:has(#main:target)) {
+      scroll-behavior: smooth;
+    }
   }
 
   body {
@@ -214,7 +226,21 @@
  * Anything above the fold animates from CSS. An animation library renders
  * its initial state into the SSR HTML, so a JS-driven reveal ships an
  * element that is invisible to a human and to the LCP observer until
- * hydration. Transform only; opacity is never touched.
+ * hydration.
+ *
+ * CSS is not automatically immune to that. The first cut masked each line
+ * with `overflow: hidden` and parked it at `translateY(100%)`, which hides
+ * the LCP element every bit as completely — "opacity is never touched" was
+ * not the protection it looked like. Measured LCP was 3.4s, 2.9s of it
+ * render delay, because the headline only became visible as the keyframe
+ * played it in.
+ *
+ * The paint and the animation are now decoupled: the resting state is the
+ * static state, so every line is legible in the very first painted frame,
+ * and the travel is short enough to stay inside the viewport throughout.
+ * The mask still gives the reveal its line-rise character, and --ease-out
+ * covers most of the distance inside the first ~120ms. Spec §6.1's stagger
+ * (0.08) and duration (1.1s) are unchanged.
  * ------------------------------------------------------------------ */
 
 .hero-line {
@@ -224,7 +250,6 @@
 
 .hero-line > span {
   display: block;
-  transform: translateY(100%);
   animation: hero-line-rise 1.1s var(--ease-out) both;
 }
 
@@ -240,7 +265,7 @@
 
 @keyframes hero-line-rise {
   from {
-    transform: translateY(100%);
+    transform: translateY(30%);
   }
   to {
     transform: translateY(0);
