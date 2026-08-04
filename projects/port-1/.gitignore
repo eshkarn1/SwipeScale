@@ -38,4 +38,6 @@ next-env.d.ts
 # ~2MB of throwaway WebP that Script 3 replaces with real frames. Regenerate
 # with: python3 scripts/gen-placeholder-frames.py
 # The generator IS tracked; its output is not.
-/public/seq/
+/public/seq/*
+# ...but the asset contract Script 3 has to read must survive.
+!/public/seq/README.md

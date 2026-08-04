@@ -27,6 +27,23 @@ export interface SequenceManifest {
   posterFrame: number;
   /** aria-label for the canvas (role="img") */
   alt: string;
+  /**
+   * Region of the frame that must stay visually quiet, as fractions of the
+   * frame (0–1, origin top-left). DOM copy sits over this area, so anything
+   * high-contrast or busy inside it will collide with type.
+   *
+   * This exists because the placeholder frames collided with the headline —
+   * `HERO 001 / 180` printed straight through the word "that feel" at every
+   * breakpoint — and nothing in the repo told the asset pipeline otherwise.
+   * The vignette does not solve it: it darkens the corners and leaves the
+   * centre at full strength, which is exactly where the headline crosses.
+   *
+   * "Quiet" means: no hard edges, no text, no high-frequency detail, and
+   * luminance low enough that bone (#EDEAE3) clears 4.5:1 over it. A dark
+   * graded field or soft out-of-focus material is right; a bright subject or
+   * lettering is not.
+   */
+  safeArea: { x: number; y: number; w: number; h: number };
   frameSrc: (width: number, frame: number) => string;
   posterSrc: string;
 }
@@ -44,6 +61,7 @@ interface ManifestInput {
   aspect: number;
   posterFrame: number;
   alt: string;
+  safeArea: { x: number; y: number; w: number; h: number };
 }
 
 function defineSequence(input: ManifestInput): SequenceManifest {
@@ -61,40 +79,50 @@ export const SEQUENCES: Record<SequenceId, SequenceManifest> = {
     label: "HERO",
     mode: "scrub",
     frameCount: 180,
-    widths: [1440],
+    widths: [375, 768, 1440],
     aspect: 16 / 9,
     posterFrame: 1,
     alt: "A scroll-driven title sequence: the words Websites that feel expensive resolving out of a dark graded field.",
+    // Headline block sits bottom-left and measured y=258→744 of a 900px
+    // viewport at 1440, so it crosses the vignette's transparent centre band.
+    // Left 60%, from 22% down to 96%, must stay quiet.
+    safeArea: { x: 0, y: 0.22, w: 0.6, h: 0.74 },
   }),
   "case-01": defineSequence({
     id: "case-01",
     label: "CASE 01",
     mode: "loop",
     frameCount: 60,
-    widths: [960],
+    widths: [375, 960],
     aspect: 16 / 10,
     posterFrame: 1,
     alt: "An ambient loop from the Halden concept: cold-water catalogue photography moving under a typographic overlay.",
+    // Case metadata overlays the lower third on mobile.
+    safeArea: { x: 0, y: 0.62, w: 1, h: 0.38 },
   }),
   "case-02": defineSequence({
     id: "case-02",
     label: "CASE 02",
     mode: "loop",
     frameCount: 60,
-    widths: [960],
+    widths: [375, 960],
     aspect: 16 / 10,
     posterFrame: 1,
     alt: "An ambient loop from the Meridian Type concept: specimen letterforms sliding across a foundry specimen page.",
+    // Case metadata overlays the lower third on mobile.
+    safeArea: { x: 0, y: 0.62, w: 1, h: 0.38 },
   }),
   "case-03": defineSequence({
     id: "case-03",
     label: "CASE 03",
     mode: "loop",
     frameCount: 60,
-    widths: [960],
+    widths: [375, 960],
     aspect: 16 / 10,
     posterFrame: 1,
     alt: "An ambient loop from the Fold concept: an architectural elevation drifting slowly across the frame.",
+    // Case metadata overlays the lower third on mobile.
+    safeArea: { x: 0, y: 0.62, w: 1, h: 0.38 },
   }),
 };
 

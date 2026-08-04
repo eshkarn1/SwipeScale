@@ -55,11 +55,15 @@ MONO_CANDIDATES = [
 # only ever shows the central 26% of it — 0.24 keeps the label whole there.
 # The case sequences are 16:10 rendered into a 16:10 box and are never cropped,
 # so they can afford a larger, more legible label.
+# Widths, not a width. A single 1440 rendition meant a 375px phone downloaded
+# 1.34 MB of 1440-wide hero frames — pickWidth() already selects the narrowest
+# rendition that covers the element, the files just did not exist. Keep these
+# in sync with `widths` in lib/sequences.ts, ascending.
 SEQUENCES = [
-    ("hero", "HERO", 180, 1440, 810, 1, 0.24),
-    ("case-01", "CASE 01", 60, 960, 600, 1, 0.44),
-    ("case-02", "CASE 02", 60, 960, 600, 1, 0.44),
-    ("case-03", "CASE 03", 60, 960, 600, 1, 0.44),
+    ("hero", "HERO", 180, [375, 768, 1440], 16 / 9, 1, 0.24),
+    ("case-01", "CASE 01", 60, [375, 960], 16 / 10, 1, 0.44),
+    ("case-02", "CASE 02", 60, [375, 960], 16 / 10, 1, 0.44),
+    ("case-03", "CASE 03", 60, [375, 960], 16 / 10, 1, 0.44),
 ]
 
 WEBP = {"format": "WEBP", "quality": 70, "method": 4}
@@ -147,29 +151,36 @@ def main() -> None:
     total_bytes = 0
     total_files = 0
 
-    for seq_id, label, count, width, height, poster_frame, safe_fraction in SEQUENCES:
-        rendition = SEQ_DIR / seq_id / str(width)
-        rendition.mkdir(parents=True, exist_ok=True)
+    for seq_id, label, count, widths, aspect, poster_frame, safe_fraction in SEQUENCES:
+        for width in widths:
+            height = int(round(width / aspect))
+            rendition = SEQ_DIR / seq_id / str(width)
+            rendition.mkdir(parents=True, exist_ok=True)
 
-        big = fit_label_font(label_text(label, count, count), width, safe_fraction)
+            big = fit_label_font(label_text(label, count, count), width, safe_fraction)
+            seq_bytes = 0
 
-        for frame in range(1, count + 1):
-            image = draw_frame(label, frame, count, width, height, big)
-            path = rendition / f"frame_{frame:04d}.webp"
-            image.save(path, **WEBP)
-            total_bytes += path.stat().st_size
-            total_files += 1
-
-            if frame == poster_frame:
-                poster = SEQ_DIR / seq_id / "poster.webp"
-                image.save(poster, **WEBP)
-                total_bytes += poster.stat().st_size
+            for frame in range(1, count + 1):
+                image = draw_frame(label, frame, count, width, height, big)
+                path = rendition / f"frame_{frame:04d}.webp"
+                image.save(path, **WEBP)
+                seq_bytes += path.stat().st_size
                 total_files += 1
 
-        print(
-            f"{seq_id}: {count} frames + poster at {width}x{height}, "
-            f"label {big.size}px within central {safe_fraction:.0%}"
-        )
+                # Poster comes from the largest rendition only — it is the one
+                # shown under reduced motion and in <noscript>.
+                if frame == poster_frame and width == max(widths):
+                    poster = SEQ_DIR / seq_id / "poster.webp"
+                    image.save(poster, **WEBP)
+                    total_bytes += poster.stat().st_size
+                    total_files += 1
+
+            total_bytes += seq_bytes
+            print(
+                f"{seq_id} @ {width}x{height}: {count} frames, "
+                f"{seq_bytes / 1024:.0f} KiB, label {big.size}px "
+                f"within central {safe_fraction:.0%}"
+            )
 
     print(f"\n{total_files} files, {total_bytes} bytes ({total_bytes / 1_048_576:.2f} MiB)")
 
