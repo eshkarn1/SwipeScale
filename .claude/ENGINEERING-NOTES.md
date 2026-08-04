@@ -89,18 +89,48 @@ Applies to every agent, without exception.
 - **Server Components cannot use hooks or browser APIs.** Anything touching
   `window` needs `'use client'` and an effect.
 
-### The LCP trap — this one bites twice
+### The LCP trap — it has now bitten three times, in two different technologies
 
-Animation libraries render their **initial state into the SSR HTML**. A
-`<Reveal>` with `initial={{ opacity: 0 }}` ships an invisible element: present
-for crawlers, invisible to a human and to the LCP observer until hydration.
+**The rule, stated correctly:**
 
-Measured LCP was **2876ms** because of this. It was fixed on the `h1` — and LCP
-simply moved to the paragraph below it, still at 2.8s.
+> Above the fold, the element must be **painted in its final visible position in
+> the very first frame**. Only its *motion* may be delayed. The technology
+> — JS, CSS, or anything else — is irrelevant.
 
-**Rule: anything above the fold animates from CSS, never from JS.** Use the JS
-primitives only for scroll-triggered reveals below the fold, where in-view
-detection is the actual requirement. Fix the whole fold at once, not one element.
+Read that again before reaching for the shortcut version, because the shortcut
+version is what caused the third failure.
+
+**How it appeared each time:**
+
+1. **JS.** `<Reveal>` with `initial={{ opacity: 0 }}`. Animation libraries render
+   their initial state into the SSR HTML, so the element ships invisible —
+   present for crawlers, absent for a human and for the LCP observer until
+   hydration. Measured **2876ms**.
+2. **JS again, one element down.** Fixing only the `h1` moved LCP to the
+   paragraph below it, still 2.8s. **Fix the whole fold at once**, never a
+   single element — LCP just relocates to the next-largest thing.
+3. **CSS.** An earlier version of this note said "animate from CSS, never from
+   JS". A team followed it exactly and reproduced the failure:
+   ```css
+   .hero-line { overflow: hidden; }
+   .hero-line > span {
+     transform: translateY(100%);
+     animation: rise 1.1s var(--ease-out) both;
+   }
+   ```
+   `animation-fill-mode: both` applies the `from` keyframe before the animation
+   starts, so the line sat clipped entirely outside its mask at t=0. Invisible
+   is invisible; the LCP observer does not care which language hid it. Measured
+   **3.4s, 2.9s of it render delay**.
+
+**What actually works:** keep the resting state visible and make the travel
+small enough to stay inside the mask. `translateY(30%)` reads as a line-rise and
+is legible in frame one; `translateY(100%)` is a blank screen with a timer on it.
+
+**How to check, rather than assume:** run Lighthouse or a `PerformanceObserver`
+and read the **LCP element**, not just the number. If it is a `<span>`, a
+headline line, or anything inside a reveal wrapper, you have this bug. Opacity,
+transform, clip-path, `visibility`, and `content-visibility` all cause it.
 
 ---
 

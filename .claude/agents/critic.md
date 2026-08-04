@@ -70,8 +70,10 @@ For anything visual, do not review from source alone. Build it and look:
 Check these on every visual review; each shipped at least once:
 1. **Text over imagery** — is it actually readable, at every breakpoint?
 2. **Horizontal overflow at 375** — invisible on desktop, obvious on a phone.
-3. **LCP element** — is anything above the fold animated by JS? Its initial
-   state ships into the SSR HTML and the element is invisible until hydration.
+3. **LCP element** — read it from Lighthouse or a PerformanceObserver. If it
+   is a `<span>`, a headline line, or anything inside a reveal wrapper, the
+   element is not painted in frame one. This has shipped three times, in JS
+   *and* in CSS — asking "is it CSS?" is not the check.
 4. **Desktop-tuned constants** — any hardcoded offset that has no narrow branch.
 5. **Contrast** — measured by the script, never eyeballed.
 

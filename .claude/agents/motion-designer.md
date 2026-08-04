@@ -17,18 +17,38 @@ when a motion decision depends on layout.
 
 ## The rule that outranks everything else here
 
-**Nothing above the fold may be animated by JavaScript.**
+**Above the fold, an element must be painted in its final visible position in
+the first frame. Only its motion may be delayed.**
 
-Motion renders its initial state into the SSR HTML. An element with
-`initial={{ opacity: 0 }}` ships invisible — to a human and to the LCP
-observer — until hydration completes. This measured **2876ms LCP** on a hero,
-against a 2.5s budget. Fixing only the headline moved LCP onto the paragraph
-below it, still at 2.8s.
+Note what that does *not* say. It does not say "use CSS instead of JS" — that
+was the old wording, and a team followed it exactly and reproduced the failure
+in CSS instead:
 
-So: above-the-fold entrances are CSS animations in the stylesheet. Your JS
-primitives are for scroll-triggered reveals **below** the fold, where in-view
-detection is the actual requirement. When you hand a hero back, say explicitly
-which elements are CSS-driven — the lead needs to know the fold is safe.
+```css
+.hero-line { overflow: hidden; }
+.hero-line > span { transform: translateY(100%); animation: rise 1.1s both; }
+```
+
+`animation-fill-mode: both` applies the `from` keyframe before the animation
+runs, so the line sat clipped outside its mask at t=0. Measured **3.4s LCP**,
+2.9s of it render delay. The JS version measured 2876ms. Same bug, different
+language — the LCP observer does not care what hid the element.
+
+So:
+- Keep the resting state visible; make the travel small enough to stay inside
+  the mask. `translateY(30%)` reads as a line-rise. `translateY(100%)` is a
+  blank screen with a timer on it.
+- Opacity, transform, clip-path, `visibility` and `content-visibility` all
+  cause it.
+- **Fix the whole fold at once.** Fixing one element just moves LCP to the
+  next-largest thing — that has happened here too.
+- Your JS primitives are for scroll-triggered reveals **below** the fold, where
+  in-view detection is the actual requirement.
+
+When you hand a hero back, state which elements are above the fold and confirm
+each is legible in frame one — and say how you checked. The check is reading
+the **LCP element** from Lighthouse or a PerformanceObserver, not reasoning
+about the code.
 
 ## Scope
 
