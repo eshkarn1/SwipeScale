@@ -1,0 +1,3 @@
+- [port-1 — Swipe & Scale site](project-port-1-swipe-and-scale.md) — a two-week sales asset, not a masterpiece; ship-over-polish is the explicit brief
+- [Verify rendered output, not source](feedback-verify-rendered-output-not-source.md) — drive a real browser and measure; unlabelled screenshots are not evidence
+- [port-1 QA artefacts + node PATH](reference-port-1-qa-artefacts.md) — where the screenshots and Lighthouse runs live, and the PATH every node command needs
