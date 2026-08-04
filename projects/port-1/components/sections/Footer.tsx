@@ -7,7 +7,7 @@ const SOCIALS = [
 export default function Footer() {
   return (
     <footer className="rule mx-[var(--gutter)] flex flex-col gap-4 py-[var(--stack-md)] pb-[calc(var(--stack-md)+3rem)] sm:flex-row sm:items-center sm:justify-between">
-      <a href="mailto:hello@swipeandscale.studio" className="mono inline-flex min-h-[44px] items-center text-bone">
+      <a href="mailto:hello@swipeandscale.studio" className="mono inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-bone">
         hello@swipeandscale.studio
       </a>
 
@@ -16,7 +16,7 @@ export default function Footer() {
           <a
             key={social.label}
             href={social.href}
-            className="mono inline-flex min-h-[44px] items-center text-bone"
+            className="mono inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-bone"
           >
             {social.label}
           </a>
@@ -24,10 +24,10 @@ export default function Footer() {
       </nav>
 
       <nav aria-label="Legal" className="flex items-center gap-6">
-        <a href="/privacy" className="mono inline-flex min-h-[44px] items-center text-bone">
+        <a href="/privacy" className="mono inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-bone">
           Privacy
         </a>
-        <a href="/terms" className="mono inline-flex min-h-[44px] items-center text-bone">
+        <a href="/terms" className="mono inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-bone">
           Terms
         </a>
       </nav>

@@ -48,14 +48,28 @@
   /* Native smooth scroll, on anchors only — spec §2. No scroll hijacking, no
      smooth-scroll library.
 
-     Setting `scroll-behavior: smooth` unconditionally on <html> also animates
-     the scroll that sequential focus navigation performs, so a single Tab press
-     spent over a second travelling down the page. `:has(:target)` matches only
-     once a fragment has actually been navigated to, which leaves Tab-driven
-     scrolling instant. `#main` is the skip link's destination and must jump
-     rather than glide, so it is excluded. */
+     An earlier version gated this behind `html:has(:target)` and claimed that
+     "leaves Tab-driven scrolling instant". It does not. `:target` stays matched
+     after the first in-page navigation — which is exactly what both pricing
+     CTAs do — so from that click onward every Tab press glided. Measured at
+     1440 with `#contact` targeted: two Tab presses gave scrollY 3 at 30ms and
+     7659 at 930ms.
+
+     `@media (hover: hover)` is not a fix either; it says nothing about how the
+     scroll was initiated.
+
+     The reliable discriminator is the CSS-wide `scroll-behavior` on the
+     *scrolling element at the time of the scroll*, so instead of trying to
+     detect the cause, smooth is scoped to the anchor targets themselves via
+     `scroll-margin` + an explicit opt-in class on the links that should glide.
+     Sequential focus navigation never carries that class, so it is always
+     instant. */
   @media (prefers-reduced-motion: no-preference) {
-    html:has(:target):not(:has(#main:target)) {
+    html {
+      scroll-behavior: auto;
+    }
+    /* Applied by anchor links that should glide. Tab never sets it. */
+    html.smooth-anchor {
       scroll-behavior: smooth;
     }
   }
@@ -348,3 +362,45 @@
   }
 }
 
+/* ------------------------------------------------------------------ *
+ * Timecode lane.
+ *
+ * The readout is fixed to the bottom edge, so page content must not be able
+ * to flow underneath it. Reserving the row on <body> is what actually removes
+ * the collision — a backdrop alone would only make the overprint legible, not
+ * absent. See the note in components/ui/Timecode.tsx for the measurements.
+ * ------------------------------------------------------------------ */
+
+:root {
+  --timecode-lane: 2.5rem;
+}
+
+body {
+  padding-bottom: var(--timecode-lane);
+}
+
+.timecode-bar {
+  /* A solid status bar, not a gradient scrim.
+     The gradient version was tried and measured: at 375, scrolled to y=4400,
+     `FRAME 17 / 60` still printed straight through "restrained and considered,
+     and whose website" and both were unreadable. Over a small bar height a
+     to-transparent gradient is only ~50% opaque where the text actually sits,
+     which is not enough over body copy.
+     Solid also suits the brief's reference — §4's direction is a colour-grading
+     suite, and a fixed bottom status bar with a hairline top rule is exactly
+     the furniture such an application has. `--timecode-lane` matches this
+     bar's height so the body padding compensates for it exactly. */
+  height: var(--timecode-lane);
+  display: flex;
+  align-items: center;
+  background: var(--color-void);
+  border-top: 1px solid var(--color-slate);
+}
+
+/* --- FIX 7: a disabled control must not look enabled --- */
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.55;
+  border-color: var(--color-slate);
+}

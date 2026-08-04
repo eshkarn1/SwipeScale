@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Instrument_Sans, Martian_Mono } from "next/font/google";
 import "./globals.css";
+import SmoothAnchors from "@/components/motion/SmoothAnchors";
 
 const bricolageGrotesque = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -64,6 +65,7 @@ export default function RootLayout({
         className={`${bricolageGrotesque.variable} ${instrumentSans.variable} ${martianMono.variable} bg-void text-bone`}
       >
         {children}
+        <SmoothAnchors />
       </body>
     </html>
   );
