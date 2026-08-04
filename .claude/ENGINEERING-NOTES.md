@@ -83,6 +83,21 @@ Applies to every agent, without exception.
   returns 200 before trusting a single measurement.
 - **Pillow is not in the system python3 here.** Scripts needing it run with
   `~/.claude/skills/seo/.venv/bin/python`, which also has Playwright.
+- **The repo sits on an iCloud-synced Desktop, and it fights you over
+  regenerated assets.** Deleting a directory of files and re-writing it races
+  the sync daemon, which restores what it just saw deleted under a *conflict
+  name*: `frame_0090 2.webp` lands beside `frame_0090.webp`. Consequences, all
+  of which happened in one run:
+  - 706 stale files, 3.9 MB, invisible because nothing requests that filename.
+  - A verifier globbing `frame_*.webp` measured the restored **placeholders**
+    and reported a contrast failure against the *current* render. The number
+    was real; the diagnosis it implied was wrong.
+  - Reading a cold, evicted file can raise `TimeoutError: [Errno 60]` mid-run.
+
+  `rm -rf` before writing does **not** prevent this — the restore lands after.
+  Prune *after* rendering, match filenames with a strict regex rather than a
+  glob, and treat a non-conforming name as its own failure rather than folding
+  it into whatever you were measuring.
 
 ---
 
