@@ -1,0 +1,16 @@
+{
+  "id": "case-02",
+  "mode": "loop",
+  "frameCount": 48,
+  "fps": 24,
+  "aspect": 1.7778,
+  "alt": "An abstract placeholder field of thin blue contour lines tracing a moderate pulse of drifting radial forms on a near-black background, the pattern breathing in and out in a seamless two-second loop.",
+  "posterFrame": 1,
+  "posterPath": "/seq/case-02/poster.webp",
+  "tiers": [
+    { "width": 640, "path": "/seq/case-02/0640", "bytes": 0 },
+    { "width": 960, "path": "/seq/case-02/0960", "bytes": 0 }
+  ],
+  "filePattern": "frame_{n}.webp",
+  "padding": 4
+}

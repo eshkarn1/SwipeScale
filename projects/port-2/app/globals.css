@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme {
+  /* colour */
+  --color-void:      #08090C;
+  --color-graphite:  #16181D;
+  --color-slate:     #2A2E37;
+  --color-edge:      #555D6F;
+  --color-bone:      #EDEAE3;
+  --color-signal:    #3B4CFF;
+  --color-amber:     #FFB43D;
+
+  /* type */
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+  --font-body:    "Instrument Sans", system-ui, sans-serif;
+  --font-mono:    "Martian Mono", ui-monospace, monospace;
+
+  /* scale — clamp-based, no breakpoint jumps */
+  --text-mega:  clamp(3.25rem, 11vw, 11rem);
+  --text-h1:    clamp(2.5rem, 6.5vw, 5.5rem);
+  --text-h2:    clamp(1.875rem, 3.6vw, 3.25rem);
+  --text-h3:    clamp(1.25rem, 1.9vw, 1.75rem);
+  --text-body:  clamp(1rem, 1.15vw, 1.125rem);
+  --text-micro: 0.6875rem;
+
+  /* rhythm */
+  --gutter: clamp(1.25rem, 4vw, 5rem);
+  --stack-lg: clamp(6rem, 14vh, 11rem);
+  --stack-md: clamp(3rem, 7vh, 5rem);
+
+  /* motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-void);
+  color: var(--color-bone);
+}

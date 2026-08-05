@@ -1,0 +1,18 @@
+{
+  "id": "hero",
+  "mode": "scrub",
+  "frameCount": 180,
+  "fps": 24,
+  "aspect": 1.7778,
+  "alt": "An abstract placeholder field of thin blue and amber contour lines tracing drifting radial forms across a near-black background, the lines sweeping diagonally rightward and shifting in colour from cool signal blue to warm amber as the sequence advances from start to end.",
+  "posterFrame": 1,
+  "posterPath": "/seq/hero/poster.webp",
+  "tiers": [
+    { "width": 960,  "path": "/seq/hero/0960", "bytes": 0 },
+    { "width": 1440, "path": "/seq/hero/1440", "bytes": 0 },
+    { "width": 1920, "path": "/seq/hero/1920", "bytes": 0 }
+  ],
+  "mobileVariant": { "width": 960, "path": "/seq/hero/0960-half", "frameCount": 90, "step": 2, "bytes": 0 },
+  "filePattern": "frame_{n}.webp",
+  "padding": 4
+}

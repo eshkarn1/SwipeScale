@@ -1,0 +1,2 @@
+- [Port-2 GATE 1 scaffold results](project_port2_gate1_findings.md) — stack parity with port-1 verified green, no version drift.
+- [GSAP ScrollTrigger type-resolution trap](gsap_scrolltrigger_type_resolution.md) — subpath plugin imports need a bare `"gsap"` import in-program or tsc errors TS7016.
