@@ -80,7 +80,31 @@ const CHECKS = [
   ["field border, focus", SIGNAL, VOID, 3.0],
   ["focus ring", SIGNAL, VOID, 3.0],
   ["emphasised pricing card", SIGNAL, VOID, 3.0],
+
+  // Inverted surface (.surface-paper). Sections alternate ground now, and a
+  // pair that is fine on void is not automatically fine on bone — signal, for
+  // instance, goes from 3.47:1 to 4.77:1, but --color-edge goes the wrong way.
+  ["paper: body + headings", VOID, BONE, 4.5],
+  ["paper: step numbers", SIGNAL, BONE, 4.5],
+  ["paper: focus ring", SIGNAL, BONE, 3.0],
+
+  // Graphite surface (.surface-graphite).
+  ["graphite: body text", BONE, GRAPHITE, 4.5],
+  ["graphite: focus ring", SIGNAL, GRAPHITE, 3.0],
 ];
+
+// --color-edge measures 2.69:1 on graphite, below the 3:1 boundary floor, so
+// no control on a graphite surface may be bordered with it. Nothing is today.
+// Asserted rather than commented, because a comment would not notice.
+{
+  const onGraphite = contrast(EDGE, GRAPHITE);
+  if (onGraphite >= 3.0) {
+    console.error(
+      `NOTE: --color-edge now measures ${onGraphite.toFixed(2)}:1 on graphite; ` +
+        `the restriction in globals.css can be lifted.`,
+    );
+  }
+}
 
 let failed = 0;
 console.log(`${"what".padEnd(26)} ${"fg".padEnd(8)} ${"bg".padEnd(8)} ${"ratio".padStart(7)}  floor`);

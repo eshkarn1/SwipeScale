@@ -6,7 +6,7 @@ export default function Faq() {
   return (
     <section
       id="faq"
-      className="bg-void px-[var(--gutter)] py-[var(--stack-lg)]"
+      className="surface-graphite px-[var(--gutter)] py-[var(--stack-lg)]"
       aria-labelledby="faq-heading"
     >
       <Eyebrow className="text-bone/70">QUESTIONS</Eyebrow>

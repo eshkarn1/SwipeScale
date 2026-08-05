@@ -371,6 +371,53 @@
   }
 }
 
+/* ------------------------------------------------------------------ *
+ * Surface rhythm
+ *
+ * Spec §4 sets the direction as "cold near-black" and §5 says "restraint is
+ * the brief". Built literally, that produced seven consecutive sections of the
+ * same shape on the same black — eyebrow, big heading, content, repeat — and
+ * it was rejected on sight. The austerity was specified; the monotony was the
+ * cost of taking it literally.
+ *
+ * So the page now alternates surfaces. No new colours: `paper` is bone used as
+ * a ground rather than as ink, and `graphite` was already a token that nothing
+ * used. The palette is unchanged; only which token carries the background is.
+ *
+ * Measured on the inverted surface:
+ *   void on bone      16.57:1   body and headings
+ *   signal on bone     4.77:1   clears the 4.5 text floor AND the 3:1 ring
+ *   bone on graphite  14.78:1
+ *
+ * Note: --color-edge (#555D6F) measures 2.69:1 on graphite and must NOT be
+ * used for a control boundary there. Nothing on a graphite surface is
+ * bordered; check-contrast.mjs would not catch it if something became so.
+ * ------------------------------------------------------------------ */
+
+.surface-paper {
+  background-color: var(--color-bone);
+  color: var(--color-void);
+}
+
+.surface-paper .rule {
+  /* A hairline, not a hard line. 2.09:1 — decorative, so no floor applies;
+     1.4.11 governs the boundary of controls and a divider is not one. */
+  border-top-color: #a8a399;
+}
+
+.surface-paper :focus-visible {
+  outline-color: var(--color-signal);
+}
+
+.surface-paper ::selection {
+  background-color: var(--color-signal);
+  color: var(--color-bone);
+}
+
+.surface-graphite {
+  background-color: var(--color-graphite);
+}
+
 /* The single gradient in the build. Spec §6.1. */
 .hero-vignette {
   background: radial-gradient(circle at 50% 45%, transparent 30%, var(--color-void) 92%);

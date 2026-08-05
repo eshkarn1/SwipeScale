@@ -18,8 +18,14 @@ export default function Pricing() {
         {PRICING.map((pkg) => (
           <div
             key={pkg.name}
+            /* The emphasised package sits on graphite so it reads as raised
+               rather than merely outlined differently. Measured: bone on
+               graphite 14.78:1, signal border on graphite 3.10:1 — both clear,
+               and both are in check-contrast.mjs. */
             className={`flex flex-col p-[clamp(1.5rem,3vw,2.5rem)] ${
-              pkg.emphasis ? "border border-signal" : "border border-edge"
+              pkg.emphasis
+                ? "surface-graphite border border-signal"
+                : "border border-edge"
             }`}
           >
             <h3 className="display text-h3 text-bone">{pkg.name}</h3>

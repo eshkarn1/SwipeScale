@@ -34,11 +34,11 @@ export default function Process() {
   return (
     <section
       id="process"
-      className="bg-void px-[var(--gutter)] py-[var(--stack-lg)]"
+      className="surface-paper px-[var(--gutter)] py-[var(--stack-lg)]"
       aria-labelledby="process-heading"
     >
-      <Eyebrow className="text-bone/70">HOW IT RUNS</Eyebrow>
-      <h2 id="process-heading" className="display mt-[clamp(1rem,2vh,1.75rem)] text-h2 text-bone">
+      <Eyebrow className="text-void/60">HOW IT RUNS</Eyebrow>
+      <h2 id="process-heading" className="display mt-[clamp(1rem,2vh,1.75rem)] text-h2 text-void">
         Four steps, no surprises.
       </h2>
 
@@ -49,9 +49,9 @@ export default function Process() {
             data-reveal="process-row"
             className="rule grid grid-cols-1 gap-x-8 gap-y-3 py-[clamp(1.5rem,3vh,2.5rem)] md:grid-cols-12"
           >
-            <span className="mono text-bone/70 md:col-span-2">{step.number}</span>
-            <h3 className="display text-h3 text-bone md:col-span-4">{step.title}</h3>
-            <p className="prose text-body text-bone/80 md:col-span-6">{step.body}</p>
+            <span className="mono text-signal md:col-span-2">{step.number}</span>
+            <h3 className="display text-h3 text-void md:col-span-4">{step.title}</h3>
+            <p className="prose text-body text-void/75 md:col-span-6">{step.body}</p>
           </li>
         ))}
       </ol>

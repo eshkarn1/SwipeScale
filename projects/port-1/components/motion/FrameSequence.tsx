@@ -303,13 +303,22 @@ export default function FrameSequence({
       style={{ aspectRatio: String(manifest.aspect) }}
     >
       {/* Static poster: paints from the SSR HTML with no JS, and is the LCP
-          candidate for the hero. The canvas draws over it once frames decode. */}
+          candidate for the hero. The canvas draws over it once frames decode.
+
+          `loading` matters as much as `fetchPriority` here. With it unset, all
+          four posters were fetched at ~188ms on a throttled phone — including
+          the three case posters, which sit thousands of pixels below the fold.
+          Measured: 25 + 30 + 32 + 29 KB, ~91 KB of it off-screen, in flight
+          alongside the two woff2 files that did not finish until 1349ms.
+          `fetchPriority="auto"` lowers their rank in the queue; it does not
+          stop them being requested. Only the hero's is eager. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={manifest.posterSrc}
         alt=""
         aria-hidden="true"
         fetchPriority={priority ? "high" : "auto"}
+        loading={priority ? "eager" : "lazy"}
         decoding="async"
         className="absolute inset-0 h-full w-full object-cover"
       />

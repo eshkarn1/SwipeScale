@@ -13,8 +13,12 @@ The frames are consumed through the manifest in `lib/sequences.ts`. Widening
 ## What is on disk now
 
 **Rendered, not placeholder.** `scripts/render-frames.py` produces the shipped
-sequences: a slow volumetric field of light ribbons drifting through dark haze,
-graded so the bright material never lands where copy does.
+sequences: contours of a moving scalar field — plotted linework, the look of a
+topographic survey — graded so the bright structure never lands where copy does.
+
+An earlier version was a soft volumetric blur. It satisfied every contract here
+and looked like a default desktop wallpaper; it was rejected on sight. Passing
+the gates is necessary, not sufficient.
 
 ```bash
 ~/.claude/skills/seo/.venv/bin/python scripts/render-frames.py   # write frames
@@ -68,7 +72,20 @@ that **must stay visually quiet** because DOM copy sits over it.
 | id | safe area | what is on top of it |
 |---|---|---|
 | `hero` | x 0 → 0.60, y 0.22 → 0.96 | The headline, bottom-left, at `--text-mega` |
-| `case-*` | full width, y 0.62 → 1.0 | Case metadata on mobile, where it stacks |
+| `case-*` | full width, y 0.82 → 1.0 | Nothing today — see below |
+
+**The case reserve used to be y 0.62 → 1.0 and was wrong.** It claimed case
+metadata overlaid the lower third on mobile. Measured against every text node
+in the section at 375, 768 and 1440: **zero overlap, all three canvases, all
+three widths.** `WorkCase` is a CSS grid — the canvas is one cell and the
+metadata another, so "stacks" puts the copy *below* the canvas, never over it.
+The reserve was costing 38% of every case frame to prevent a collision that
+cannot occur, and the 16:10 frames read as letterboxed because of it. The short
+band that remains is insurance against a future layout that does overlay
+something.
+
+The hero reserve is real: its headline block is absolutely positioned over the
+canvas.
 
 **Quiet means:**
 
@@ -103,11 +120,19 @@ care about in the bottom `--timecode-lane` (2.5rem); it will be covered.
 ## Encoding
 
 - **WebP.** No `<video>`, no HLS, no GIF, no Lottie — spec C1 and C2.
-- Budget the whole sequence, not the single frame. The hero is 180 frames.
+- Budget the whole sequence, not the single frame. The hero is 180 frames, so
+  a 20 KB frame is a 3.6 MB sequence.
+- **Linework costs roughly 10x what a blur does.** The same hero frame at 1440
+  went from 5 KB as a soft gradient to 54 KB as contours. Line *count* is the
+  dominant term, not quality: measured at 1440/q68, density 26 → 46 KB, 16 →
+  31 KB, 12 → 25 KB, 9 → 19 KB. The shipped value is 12, which is also the
+  best-looking — fewer, wider-spaced contours read as deliberate rather than
+  busy. If you need bytes back, take lines out before you take quality out.
+- Grain costs nothing here (measured: identical encoded size with and without)
+  because the background is flat void rather than a gradient, so there is no
+  banding for it to dither. It is kept as insurance, not as a fix.
 - Frames stream in order, so favour consistent per-frame size over a small
   average with spikes.
-- Dark smooth gradients band badly under WebP quantisation. The renderer adds
-  low-amplitude grain to dither it away; it costs very little size.
 - The poster is what renders under `prefers-reduced-motion`, in `<noscript>`,
   and before the sequence loads. It must stand alone as a still and satisfy the
   same safe area.

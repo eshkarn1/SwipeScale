@@ -40,8 +40,13 @@ export interface SequenceManifest {
    * labels previously promised "cold-water catalogue photography moving under
    * a typographic overlay", "specimen letterforms sliding across a foundry
    * specimen page" and "an architectural elevation drifting across the frame".
-   * None of that was ever rendered: all four sequences are one abstract field
-   * of light ribbons, identical between the three cases but for brightness.
+   * None of that was ever rendered: all four sequences are one abstract
+   * contour-line field, identical between the three cases but for brightness.
+   *
+   * Re-check these whenever the art direction changes. They were corrected
+   * once for describing footage that never existed, then went stale again the
+   * moment the render changed from soft ribbons to contour lines — a label
+   * that was true when written is not true forever.
    *
    * A screen-reader user was being told there were three distinct pieces of
    * photographic, typographic and architectural footage while a sighted user
@@ -108,7 +113,7 @@ export const SEQUENCES: Record<SequenceId, SequenceManifest> = {
     widths: [375, 768, 1440],
     aspect: 16 / 9,
     posterFrame: 1,
-    alt: "A scroll-driven title sequence: a slow field of blue light ribbons drifting through darkness, brightest at the right, the left side kept near-black for the headline.",
+    alt: "A scroll-driven title sequence: concentric contour lines, like a topographic survey, resolving out of darkness on the right while the left stays black for the headline.",
     // Headline block sits bottom-left and measured y=258→744 of a 900px
     // viewport at 1440, so it crosses the vignette's transparent centre band.
     // Left 60%, from 22% down to 96%, must stay quiet.
@@ -122,9 +127,12 @@ export const SEQUENCES: Record<SequenceId, SequenceManifest> = {
     widths: [375, 960],
     aspect: 16 / 10,
     posterFrame: 1,
-    alt: "An ambient loop for the Halden concept: the same field of blue light ribbons, drifting slowly across the upper frame.",
-    // Case metadata overlays the lower third on mobile.
-    safeArea: { x: 0, y: 0.62, w: 1, h: 0.38 },
+    alt: "An ambient loop for the Halden concept: the same contour-line field, drifting slowly across the frame.",
+    // Measured: NOTHING overlays this canvas at 375, 768 or 1440 — WorkCase is
+    // a grid, so the metadata stacks below rather than over. The old y 0.62
+    // reserve cost 38% of the frame for a collision that cannot happen. This
+    // short bottom band is insurance against a future layout that does overlay.
+    safeArea: { x: 0, y: 0.82, w: 1, h: 0.18 },
   }),
   "case-02": defineSequence({
     id: "case-02",
@@ -134,9 +142,12 @@ export const SEQUENCES: Record<SequenceId, SequenceManifest> = {
     widths: [375, 960],
     aspect: 16 / 10,
     posterFrame: 1,
-    alt: "An ambient loop for the Meridian Type concept: the same field of blue light ribbons, at its brightest of the three.",
-    // Case metadata overlays the lower third on mobile.
-    safeArea: { x: 0, y: 0.62, w: 1, h: 0.38 },
+    alt: "An ambient loop for the Meridian Type concept: the same contour-line field, at its brightest of the three.",
+    // Measured: NOTHING overlays this canvas at 375, 768 or 1440 — WorkCase is
+    // a grid, so the metadata stacks below rather than over. The old y 0.62
+    // reserve cost 38% of the frame for a collision that cannot happen. This
+    // short bottom band is insurance against a future layout that does overlay.
+    safeArea: { x: 0, y: 0.82, w: 1, h: 0.18 },
   }),
   "case-03": defineSequence({
     id: "case-03",
@@ -146,9 +157,12 @@ export const SEQUENCES: Record<SequenceId, SequenceManifest> = {
     widths: [375, 960],
     aspect: 16 / 10,
     posterFrame: 1,
-    alt: "An ambient loop for the Fold concept: the same field of blue light ribbons, the most subdued of the three.",
-    // Case metadata overlays the lower third on mobile.
-    safeArea: { x: 0, y: 0.62, w: 1, h: 0.38 },
+    alt: "An ambient loop for the Fold concept: the same contour-line field, the most subdued of the three.",
+    // Measured: NOTHING overlays this canvas at 375, 768 or 1440 — WorkCase is
+    // a grid, so the metadata stacks below rather than over. The old y 0.62
+    // reserve cost 38% of the frame for a collision that cannot happen. This
+    // short bottom band is insurance against a future layout that does overlay.
+    safeArea: { x: 0, y: 0.82, w: 1, h: 0.18 },
   }),
 };
 
