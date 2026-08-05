@@ -1,6 +1,6 @@
 ---
 name: reference-port-1-qa-artefacts
-description: Where port-1's rendered evidence lives, and the exact PATH incantation every node command on this machine needs
+description: Where port-1's rendered evidence lives, the exact PATH/port incantations, and the two measurement traps that produce false findings
 metadata:
   type: reference
 ---
@@ -14,24 +14,45 @@ export PATH="$HOME/.nvm/versions/node/v20.20.2/bin:$HOME/.nvm/versions/node/v24.
 
 Node 20 first (projects pin Node 20 LTS), Node 24 second — the `pnpm` shim only
 exists under v24. Package manager is pnpm. Never run `build` and `typecheck`
-concurrently; they race on `.next/types`.
+concurrently.
 
-Playwright + Chromium + Pillow: `~/.claude/skills/seo/.venv/bin/python`.
-ImageMagick is **not** installed — use Pillow for any image inspection.
+Playwright + Chromium + Pillow + NumPy: `~/.claude/skills/seo/.venv/bin/python`.
+ImageMagick is **not** installed. Lighthouse has no global binary — use
+`npx --yes lighthouse@12.8.2 <url> --preset=desktop --chrome-flags="--headless=new --no-sandbox"`;
+drop `--preset` for the throttled mobile run.
+
+**Server.** The lead usually leaves a production build on **port 3210**. Kill it
+with `lsof -ti:3210 | xargs kill -9` — `pkill` does not release the port here.
+Confirm the CSS URL in the HTML returns 200 before trusting a measurement.
+
+**Frame assets** (`projects/port-1/`):
+
+```bash
+~/.claude/skills/seo/.venv/bin/python scripts/render-frames.py   # writes 904 WebP + 4 posters
+~/.claude/skills/seo/.venv/bin/python scripts/verify-frames.py   # safe-area contract, exits non-zero on failure
+```
+
+`public/seq/README.md` is the asset contract (safe areas, renditions, encoding).
 
 **port-1 QA artefacts** (`projects/port-1/qa/`):
 
-- `screenshots/` — 133 PNGs. Naming: `crop_hero_*` and `home_*` at
-  375/768/1024/1440; `focus_00`…`focus_44` (keyboard pass, unlabelled — you
-  cannot tell which element was focused, so re-drive it yourself);
-  `reduced_motion_y0`…`y7500`; `nojs_*`; `m375_scroll_*` and `scroll_*`
-  (viewport shots at scroll offsets — these are the useful ones, since
-  full-page `home_*` shots capture scroll-reveal elements at opacity 0 and look
-  misleadingly blank); `dbg_seg*`; `privacy_*`, `terms_*`.
-- `lighthouse/` — `home.report.json` is **before** fixes,
-  `home-after-fixes.report.json` is **after**. Read the latter. It also carries
-  `largest-contentful-paint-element` with the DOM path, which is the field that
-  actually matters for the LCP trap.
+- `screenshots/` — 133 PNGs, all from earlier rounds and mostly unlabelled.
+  Re-drive the browser rather than reading them; `focus_NN.png` in particular
+  cannot tell you which element was focused.
+- `lighthouse/` — `home-after-critic-fixes.report.json` is the newest. Read
+  `largest-contentful-paint-element` for the DOM path, not just the number.
+
+## Two traps that manufacture false findings here
+
+1. **Tailwind v4 emits `oklab()` computed colours.** A contrast script that
+   regexes the first three numbers out of `getComputedStyle(el).color` reads
+   `oklab(0.92 0.002 0.01 / 0.55)` as RGB `(0.92, 0.002, 0.01)` — near black —
+   and reports ~60 phantom failures at ratio 1.03. Resolve colours by painting
+   them onto a 1×1 canvas and reading the pixel back. Also multiply in *ancestor*
+   opacity only when you mean to; measuring mid-reveal elements gives ratio 1.0.
+2. **iCloud conflict forks land inside `.next/types`.** `pnpm typecheck` then
+   fails with `Duplicate identifier` in files literally named `routes.d 2.ts`.
+   It is not a type error. `rm -rf .next && pnpm build` clears it.
 
 Governing docs sit at the project root: `BRIEF-01-BUILD.md` (why),
 `01-BUILD-SPEC.md` (what; §10 is the acceptance checklist), and

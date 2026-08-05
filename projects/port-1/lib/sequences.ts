@@ -23,9 +23,35 @@ export interface SequenceManifest {
   widths: number[];
   /** width / height, e.g. 16/9 */
   aspect: number;
-  /** 1-based index of the representative frame */
+  /**
+   * 1-based index of the representative frame.
+   *
+   * `poster.webp` must BE this frame, byte for byte — FrameSequence publishes
+   * this number to the timecode readout whenever the draw loop is idle, so a
+   * poster holding some other frame makes the page announce a frame it is not
+   * showing. scripts/render-frames.py copies rather than re-renders it, and
+   * scripts/verify-frames.py compares the bytes.
+   */
   posterFrame: number;
-  /** aria-label for the canvas (role="img") */
+  /**
+   * aria-label for the canvas (`role="img"`) — the spec §8 text alternative.
+   *
+   * **Describe the frames that exist, not the concept they illustrate.** These
+   * labels previously promised "cold-water catalogue photography moving under
+   * a typographic overlay", "specimen letterforms sliding across a foundry
+   * specimen page" and "an architectural elevation drifting across the frame".
+   * None of that was ever rendered: all four sequences are one abstract field
+   * of light ribbons, identical between the three cases but for brightness.
+   *
+   * A screen-reader user was being told there were three distinct pieces of
+   * photographic, typographic and architectural footage while a sighted user
+   * saw three near-identical gradients. That is the studio's own rule against
+   * fabricated content, applied to alt text — and it is the more damaging
+   * place to break it, because the people relying on it cannot check.
+   *
+   * The shared material is the right call visually (vary one thing, not four).
+   * It is the labels that have to tell the truth about it.
+   */
   alt: string;
   /**
    * Region of the frame that must stay visually quiet, as fractions of the
@@ -82,7 +108,7 @@ export const SEQUENCES: Record<SequenceId, SequenceManifest> = {
     widths: [375, 768, 1440],
     aspect: 16 / 9,
     posterFrame: 1,
-    alt: "A scroll-driven title sequence: the words Websites that feel expensive resolving out of a dark graded field.",
+    alt: "A scroll-driven title sequence: a slow field of blue light ribbons drifting through darkness, brightest at the right, the left side kept near-black for the headline.",
     // Headline block sits bottom-left and measured y=258→744 of a 900px
     // viewport at 1440, so it crosses the vignette's transparent centre band.
     // Left 60%, from 22% down to 96%, must stay quiet.
@@ -96,7 +122,7 @@ export const SEQUENCES: Record<SequenceId, SequenceManifest> = {
     widths: [375, 960],
     aspect: 16 / 10,
     posterFrame: 1,
-    alt: "An ambient loop from the Halden concept: cold-water catalogue photography moving under a typographic overlay.",
+    alt: "An ambient loop for the Halden concept: the same field of blue light ribbons, drifting slowly across the upper frame.",
     // Case metadata overlays the lower third on mobile.
     safeArea: { x: 0, y: 0.62, w: 1, h: 0.38 },
   }),
@@ -108,7 +134,7 @@ export const SEQUENCES: Record<SequenceId, SequenceManifest> = {
     widths: [375, 960],
     aspect: 16 / 10,
     posterFrame: 1,
-    alt: "An ambient loop from the Meridian Type concept: specimen letterforms sliding across a foundry specimen page.",
+    alt: "An ambient loop for the Meridian Type concept: the same field of blue light ribbons, at its brightest of the three.",
     // Case metadata overlays the lower third on mobile.
     safeArea: { x: 0, y: 0.62, w: 1, h: 0.38 },
   }),
@@ -120,7 +146,7 @@ export const SEQUENCES: Record<SequenceId, SequenceManifest> = {
     widths: [375, 960],
     aspect: 16 / 10,
     posterFrame: 1,
-    alt: "An ambient loop from the Fold concept: an architectural elevation drifting slowly across the frame.",
+    alt: "An ambient loop for the Fold concept: the same field of blue light ribbons, the most subdued of the three.",
     // Case metadata overlays the lower third on mobile.
     safeArea: { x: 0, y: 0.62, w: 1, h: 0.38 },
   }),

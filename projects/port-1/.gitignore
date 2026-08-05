@@ -49,3 +49,7 @@ next-env.d.ts
 # fails on them; this is the third guard.
 /public/seq/**/* [0-9].webp
 /public/seq/**/*\ [0-9].webp
+
+# Python bytecode from the frame scripts
+__pycache__/
+*.pyc

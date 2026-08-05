@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Bricolage_Grotesque, Instrument_Sans, Martian_Mono } from "next/font/google";
 import "./globals.css";
 import SmoothAnchors from "@/components/motion/SmoothAnchors";
+import FocusClearsTimecode from "@/components/ui/FocusClearsTimecode";
 
 const bricolageGrotesque = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -66,6 +67,7 @@ export default function RootLayout({
       >
         {children}
         <SmoothAnchors />
+        <FocusClearsTimecode />
       </body>
     </html>
   );

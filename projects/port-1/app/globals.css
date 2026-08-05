@@ -74,6 +74,24 @@
     }
   }
 
+  /* The timecode bar is `position: fixed`, so the browser's scroll-into-view
+     on focus does not know it is there and will happily park a control
+     underneath it. Measured at 375x812 by tabbing and comparing rects: the
+     Privacy and Terms links each landed at bottom 796 in an 812 viewport, so
+     24px of their 44px target — and the whole lower edge of the focus ring —
+     sat under the opaque bar; the message textarea overlapped by the bar's
+     full 40px. Zero occlusions at 1440, because the page is short enough there
+     that those controls never need scrolling into view.
+
+     This is a regression introduced by the fix for the readout overprinting
+     copy: reserving a lane solved the text collision and created a focus one.
+     `scroll-padding-bottom` is the piece that tells scrolling about the lane.
+
+     Not inside the reduced-motion query — occlusion is not a motion concern. */
+  html {
+    scroll-padding-bottom: var(--timecode-lane);
+  }
+
   body {
     background-color: var(--color-void);
     color: var(--color-bone);
@@ -286,17 +304,54 @@
   }
 }
 
+/* `backwards`, deliberately, NOT `both`.
+ *
+ * `both` retains the `to` keyframe forever after the animation ends, and an
+ * animation-origin value outranks the inline style GSAP writes. That made
+ * ScrollDirector's `timeline.to(cue, { opacity: 0 })` silently inert: measured
+ * at pin progress 0.00 through 1.00, `[data-hero-cue]` read opacity 1 at every
+ * sample, at all three breakpoints. At progress 0.95 the headline had faded to
+ * 0 and the only thing left on a 300vh signature sequence was the word SCROLL,
+ * still telling the user to scroll.
+ *
+ * The headline escaped this only by accident — GSAP animates a wrapper <div>
+ * that does not carry this class.
+ *
+ * `backwards` keeps the part that matters (the `from` state applies during the
+ * 0.34s delay, so there is no flash of unstyled entrance) and drops the part
+ * that broke things (no post-animation retention), leaving the resting opacity
+ * to the cascade where GSAP can reach it.
+ *
+ * This is the same family as the LCP trap in ENGINEERING-NOTES: a fill mode
+ * applying a keyframe outside the animation's own window. There it hid an
+ * element before the animation; here it pinned one after.
+ */
 .hero-fade-in {
-  animation: hero-fade-in 0.9s var(--ease-out) 0.34s both;
+  animation: hero-fade-in 0.9s var(--ease-out) 0.34s backwards;
 }
 
+/* No `opacity: 0` in the `from` state, despite the name.
+ *
+ * Both elements carrying this class are above the fold, and starting them
+ * transparent is the LCP trap from ENGINEERING-NOTES: above the fold an element
+ * must be painted in its final visible position in the first frame, and only
+ * its *motion* may be delayed. An invisible element does not count as painted,
+ * so LCP waits for the 0.34s delay plus enough of the 0.9s fade to register.
+ *
+ * Measured: with `opacity: 0` here, Lighthouse mobile put LCP at 3.4s on this
+ * paragraph across three consecutive runs, scoring 92. The `<h1>` beside it was
+ * already fixed this way — `hero-line-rise` animates transform only — and this
+ * sibling was simply never given the same treatment, so LCP relocated onto it.
+ * That is the "fix the whole fold at once" lesson from occurrence 2, arriving
+ * late.
+ *
+ * The travel is 0.75rem, small enough that the resting text is legible from
+ * frame one, so the entrance still reads as a rise. */
 @keyframes hero-fade-in {
   from {
-    opacity: 0;
     transform: translateY(0.75rem);
   }
   to {
-    opacity: 1;
     transform: translateY(0);
   }
 }

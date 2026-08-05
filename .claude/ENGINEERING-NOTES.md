@@ -120,6 +120,13 @@ it up. Two instruments agreeing is evidence; one instrument is a hypothesis.
   glob, and treat a non-conforming name as its own failure rather than folding
   it into whatever you were measuring.
 
+  **It also hits `.next/types`, where it looks like a compiler error.**
+  `pnpm typecheck` failed with 33 `Duplicate identifier` errors in files named
+  `routes.d 2.ts`. Nothing was wrong with the code. Any duplicate-identifier
+  error naming a file with a space and a digit before the extension is this,
+  not a type bug — `rm -rf .next && pnpm build` clears it. Check the filenames
+  in the error before you start reading source.
+
 ---
 
 ## Next.js / React
