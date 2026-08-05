@@ -55,6 +55,27 @@ Applies to every agent, without exception.
   syntax and types. It proves nothing about behaviour, layout, or appearance.
 - **Check the claim, not the intent.** If a report says an asset meets budget,
   measure the file. If it says a route works, request it.
+- **Check your instrument before you believe the defect.** A saturated tool
+  reports a clean, specific, entirely false result.
+
+### The measurement traps that have produced false bug reports
+
+- **`performance.getEntriesByType('resource')` silently caps at 250 entries.**
+  On a page with a 360-frame image sequence this fabricates a missing-asset
+  bug: two sequences appeared to load zero frames, and the readout showing a
+  frame number for them looked like a second bug on top. Both runs returned
+  exactly `250` total requests — *that* was the tell. Call
+  `performance.setResourceTimingBufferSize(5000)` in an init script **before
+  navigation**, and treat a round-number total as a saturated buffer until
+  proven otherwise. Corrected numbers were 377 requests, 364 of them frames.
+- **`elementsFromPoint` always returns something under a `position: fixed`
+  element**, so a naive overlap probe reports a collision everywhere the fixed
+  element sits. Test the elements you care about, not the point.
+- **A headless WebGL frame rate is SwiftShader on the CPU.** Not a device
+  number; do not report it as fps.
+
+When a measurement implies a defect, reproduce it a second way before writing
+it up. Two instruments agreeing is evidence; one instrument is a hypothesis.
 
 ---
 

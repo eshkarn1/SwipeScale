@@ -40,15 +40,16 @@ def parse_manifest() -> dict[str, dict]:
     # Each entry looks like:  id: "hero", ... widths: [375, 768, 1440], ...
     #                         safeArea: { x: 0, y: 0.22, w: 0.6, h: 0.74 },
     blocks = re.findall(
-        r'id:\s*"([\w-]+)".*?widths:\s*\[([\d,\s]+)\].*?'
+        r'id:\s*"([\w-]+)".*?widths:\s*\[([\d,\s]+)\].*?posterFrame:\s*(\d+).*?'
         r"safeArea:\s*\{\s*x:\s*([\d.]+),\s*y:\s*([\d.]+),\s*w:\s*([\d.]+),\s*h:\s*([\d.]+)\s*\}",
         src,
         re.S,
     )
     out = {}
-    for seq_id, widths, x, y, w, h in blocks:
+    for seq_id, widths, poster_frame, x, y, w, h in blocks:
         out[seq_id] = {
             "widths": [int(v) for v in widths.split(",") if v.strip()],
+            "posterFrame": int(poster_frame),
             "safe": (float(x), float(y), float(w), float(h)),
         }
     return out
@@ -121,9 +122,25 @@ def main() -> int:
             print(f"{seq_id:<12} {width:>6} {len(frames):>7} {worst_name:>12} "
                   f"{worst_l:>8.4f} {contrast:>8.2f}:1  {total:>10,}{flag}")
 
+        # The poster must BE the frame the manifest declares. FrameSequence
+        # publishes `manifest.posterFrame` to the timecode whenever the draw
+        # loop is idle, so a poster holding some other frame makes the page
+        # announce a number that does not match the image on screen. Compare
+        # the bytes rather than trusting the renderer.
         poster = SEQ_DIR / seq_id / "poster.webp"
         if not poster.exists():
             failures.append(f"{seq_id}: poster.webp missing")
+        else:
+            pf = info["posterFrame"]
+            declared = SEQ_DIR / seq_id / str(info["widths"][-1]) / f"frame_{pf:04d}.webp"
+            if not declared.exists():
+                failures.append(f"{seq_id}: posterFrame {pf} has no frame file")
+            elif poster.read_bytes() != declared.read_bytes():
+                failures.append(
+                    f"{seq_id}: poster.webp is not frame_{pf:04d}.webp "
+                    f"({poster.stat().st_size:,} vs {declared.stat().st_size:,} bytes) — "
+                    f"the timecode will announce frame {pf} over a different image"
+                )
 
     print()
     if failures:

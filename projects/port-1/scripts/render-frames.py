@@ -44,6 +44,7 @@ be looped later without a re-render.
 from __future__ import annotations
 
 import math
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -189,10 +190,11 @@ def case_mask(width: int, height: int) -> np.ndarray:
 
 SEQUENCES = [
     # id, aspect, frames, widths, mask fn, ribbons, poster frame, seed
-    ("hero", 16 / 9, 180, [375, 768, 1440], hero_mask, HERO_RIBBONS, 90, 11),
-    ("case-01", 16 / 10, 60, [375, 960], case_mask, CASE_RIBBONS, 20, 21),
-    ("case-02", 16 / 10, 60, [375, 960], case_mask, CASE_RIBBONS, 20, 22),
-    ("case-03", 16 / 10, 60, [375, 960], case_mask, CASE_RIBBONS, 20, 23),
+    # poster frame MUST equal `posterFrame` in lib/sequences.ts — verified.
+    ("hero", 16 / 9, 180, [375, 768, 1440], hero_mask, HERO_RIBBONS, 1, 11),
+    ("case-01", 16 / 10, 60, [375, 960], case_mask, CASE_RIBBONS, 1, 21),
+    ("case-02", 16 / 10, 60, [375, 960], case_mask, CASE_RIBBONS, 1, 22),
+    ("case-03", 16 / 10, 60, [375, 960], case_mask, CASE_RIBBONS, 1, 23),
 ]
 
 # Per-sequence character. Only ONE control varies between the three cases —
@@ -242,16 +244,18 @@ def main() -> None:
 
             print(f"  {seq_id}/{width}  {count} frames  {width}x{height}")
 
-        # Poster: same dimensions as the largest rendition.
-        pw = widths[-1]
-        ph = int(round(pw / aspect))
-        ph += ph % 2
-        t = (poster_frame - 1) / count
-        rgb = render(pw, ph, t, ribbons, mask_fn(pw, ph) * gain, seed + poster_frame)
-        Image.fromarray((rgb * 255.0 + 0.5).astype(np.uint8), "RGB").save(
-            SEQ_DIR / seq_id / "poster.webp", "WEBP", quality=82, method=4
-        )
-        print(f"  {seq_id}/poster.webp  {pw}x{ph}")
+        # Poster: a byte-identical copy of the frame the manifest declares.
+        #
+        # It used to be re-rendered from its own frame index at a different
+        # quality, which let it drift: the manifest said posterFrame 1 while
+        # the file held frame 90. That is visible — FrameSequence publishes
+        # `manifest.posterFrame` to the timecode readout whenever the draw loop
+        # is not running, so the page announced "FRAME 001" over frame 90's
+        # image. Copying makes the declaration true by construction, and
+        # verify-frames.py compares the bytes so it cannot drift again.
+        src = SEQ_DIR / seq_id / str(widths[-1]) / f"frame_{poster_frame:04d}.webp"
+        shutil.copyfile(src, SEQ_DIR / seq_id / "poster.webp")
+        print(f"  {seq_id}/poster.webp  <- {src.name}")
 
 
 if __name__ == "__main__":
