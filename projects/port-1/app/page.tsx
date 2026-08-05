@@ -3,7 +3,6 @@ import Contact from "@/components/sections/Contact";
 import Faq from "@/components/sections/Faq";
 import Footer from "@/components/sections/Footer";
 import Hero from "@/components/sections/Hero";
-import Positioning from "@/components/sections/Positioning";
 import Pricing from "@/components/sections/Pricing";
 import Process from "@/components/sections/Process";
 import Work from "@/components/sections/Work";
@@ -28,7 +27,6 @@ export default function Home() {
 
       <main id="main">
         <Hero />
-        <Positioning />
         <Work />
         <Process />
         <Pricing />

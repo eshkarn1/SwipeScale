@@ -68,32 +68,6 @@ export default function ScrollDirector() {
           if (headline) timeline.to(headline, { opacity: 0, duration: 0.15 }, 0.75);
         }
 
-        // --- Positioning: word-by-word reveal -------------------------------
-        // One block, not per word.
-        //
-        // This was a 0.04 per-word stagger. Across 41 words that is 1.6s of
-        // staggering on top of the 0.7s tween, and because the statement is
-        // 218 characters over six centred lines, *every* mid-scroll position
-        // showed a half-lit paragraph with words sitting at different opacities
-        // AND different vertical offsets — "build" and "website" hanging below
-        // "AI can" — with the sentence cut off mid-phrase. It read as a
-        // rendering fault rather than as an effect. The settled state was
-        // always fine; nobody had looked at the in-between.
-        //
-        // Per-word stagger is a device for a short punchy line. This is a
-        // paragraph, and it gets the same block reveal as every other section,
-        // which is also why the page now feels consistent while scrolling.
-        const statement = document.querySelector('[data-reveal="words"]');
-        if (statement) {
-          gsap.from(statement, {
-            opacity: 0,
-            y: 24,
-            duration: 0.8,
-            ease: "power2.out",
-            scrollTrigger: { trigger: statement, start: "top 80%" },
-          });
-        }
-
         // --- Work cases -----------------------------------------------------
         for (const item of document.querySelectorAll('[data-reveal="case"]')) {
           gsap.from(item, {
