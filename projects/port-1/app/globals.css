@@ -5,6 +5,15 @@
   --color-void:      #08090C;
   --color-graphite:  #16181D;
   --color-slate:     #2A2E37;
+  /* Interactive boundaries only. WCAG 1.4.11 wants 3:1 for the visual boundary
+     of a control; slate measures 1.46:1 on void and cannot carry that job.
+     #555D6F is the smallest same-hue lighten that clears it, at 3.02:1.
+
+     Spec §4 mandates slate for borders and is silent on non-text contrast, so
+     this is a deliberate addition rather than an override: decorative rules,
+     dividers and the timecode edge keep slate untouched, and the page's
+     density is unchanged. Verified by scripts/check-contrast.mjs. */
+  --color-edge:      #555D6F;
   --color-bone:      #EDEAE3;
   --color-signal:    #3B4CFF;
   --color-amber:     #FFB43D;
@@ -170,7 +179,7 @@
     min-height: 44px;
     padding: 0.75rem 1.5rem;
     border-radius: 2px;
-    border: 1px solid var(--color-slate);
+    border: 1px solid var(--color-edge);
     font-family: var(--font-body);
     font-size: var(--text-body);
     font-weight: 500;
@@ -211,14 +220,18 @@
     font-family: var(--font-body);
     font-size: var(--text-body);
     border: 0;
-    border-bottom: 1px solid var(--color-slate);
+    border-bottom: 1px solid var(--color-edge);
     border-radius: 0;
     transition: border-color 200ms var(--ease-out);
     appearance: none;
   }
 
+  /* Brighter than the resting --color-edge, not darker. It was #4a4f5b, which
+     measured 2.43:1 on void — below the 3:1 boundary floor and *dimmer* than
+     the resting state, so hovering an input made its border harder to see.
+     4.00:1 reads as a clear hover step above edge's 3.02:1. */
   .field:hover {
-    border-bottom-color: #4a4f5b;
+    border-bottom-color: #667085;
   }
 
   .field:focus-visible {
@@ -227,8 +240,10 @@
     outline-offset: 3px;
   }
 
+  /* 4.54:1. Was #6b7280 at 4.12:1 — placeholder text carries the field's
+     example input, so it is text and takes the 4.5:1 floor, not 3:1. */
   .field::placeholder {
-    color: #6b7280;
+    color: #717988;
   }
 
   select.field {
@@ -452,7 +467,10 @@ body {
   border-top: 1px solid var(--color-slate);
 }
 
-/* --- FIX 7: a disabled control must not look enabled --- */
+/* --- FIX 7: a disabled control must not look enabled ---
+   Deliberately slate, not --color-edge. WCAG 1.4.11 exempts inactive controls
+   from the 3:1 boundary requirement, and dropping back to the dimmer border is
+   part of how the disabled state reads as disabled. */
 .btn:disabled,
 .btn[aria-disabled="true"] {
   cursor: not-allowed;

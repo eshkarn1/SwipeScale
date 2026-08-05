@@ -19,7 +19,7 @@ export default function Pricing() {
           <div
             key={pkg.name}
             className={`flex flex-col p-[clamp(1.5rem,3vw,2.5rem)] ${
-              pkg.emphasis ? "border border-signal" : "border border-slate"
+              pkg.emphasis ? "border border-signal" : "border border-edge"
             }`}
           >
             <h3 className="display text-h3 text-bone">{pkg.name}</h3>
