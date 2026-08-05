@@ -1,9 +1,5 @@
-import { Fragment } from "react";
-
 const STATEMENT =
   "AI can build you a website in an afternoon. It cannot make anyone feel anything. That last ten percent — the weight, the timing, the restraint — is the entire difference between a site that works and a site that sells.";
-
-const WORDS = STATEMENT.split(" ");
 
 /**
  * Below the fold, so a JS reveal is correct here — in-view detection is the
@@ -51,13 +47,7 @@ export default function Positioning() {
         data-reveal="words"
         className="display positioning-statement mx-auto max-w-[26ch] text-center text-h2 text-bone"
       >
-        {WORDS.map((word, index) => (
-          <Fragment key={`${word}-${index}`}>
-            <span data-reveal-word className="inline-block">
-              {word}
-            </span>{" "}
-          </Fragment>
-        ))}
+        {STATEMENT}
       </p>
     </section>
   );
