@@ -460,3 +460,119 @@ other work already on it. Rather than share that instance or guess at its
 credentials, a second, isolated `postgresql@16` (via Homebrew, no Docker
 available) runs on port 5433, used by nothing but this project. See
 `docs/local-database.md`.
+
+## 10. M2 — CRM records: choices worth following later
+
+Recorded per BUILD_SPEC §8. The task that produced this milestone narrowed
+BUILD_SPEC §7 M2 to "companies, contacts, deals — list, detail, create,
+edit, soft delete[, restore]. Custom fields via `CustomFieldDef`. Saved
+views via `SavedView`. Search and filtering" — TanStack Table, the ⌘K
+command palette, and inline grid editing are BUILD_SPEC M2 features not in
+that narrowed brief, and are not built here. Flagged rather than silently
+dropped, per §9: if the fuller M2 is wanted, TanStack Table is the natural
+next step for the list views, which are already isolated client components
+that would only need their `<table>` body swapped.
+
+### 10.1 Pagination is page-based, not cursor-based
+
+BUILD_SPEC §7 M2 asks for "pagination (cursor-based)". Built as classic
+`page`/`pageSize` (`src/lib/pagination.ts`, `PAGE_SIZE = 25`) instead.
+Reasoning: a cursor needs a stable, unique sort key to paginate against, and
+these lists support user-chosen multi-field sort (name, employees, amount,
+expected close date, …) via `?sort=&dir=`; a correct keyset cursor for an
+arbitrary sort column requires a compound cursor `(sortValue, id)` re-derived
+per column, which is real complexity for three record lists whose seeded
+size is 60–150 rows each. Offset pagination's known weakness — a
+concurrent insert/delete shifting page boundaries — is a non-issue at this
+scale and access pattern (a single team browsing its own records, not a
+public feed). Revisit if a workspace's record count grows enough that
+`OFFSET` becomes the slow part of the query plan; nothing about the
+service functions' signatures (`{ items, page, pageSize, total,
+totalPages }`) would need to change to swap the implementation later.
+
+### 10.2 A `SavedView` stores raw URL search params, not an interpreted filter tree
+
+`SavedView.filters`/`sort` (BUILD_SPEC §4) are typed `Json` with no schema
+of their own. Rather than defining a `{ field, operator, value }[]` filter
+AST and translating it to/from `URLSearchParams` on both save and load,
+`src/components/app/use-list-params.ts` treats the URL's query string as
+the single source of truth for a list's state, and `createSavedViewAction`
+simply serialises the *current* `URLSearchParams` (minus `page` and `view`)
+into `filters`. Loading a view is `router.push` back to that same query
+string. This means a saved view can never drift out of sync with what its
+list actually supports filtering on — there is no second representation to
+keep in sync — at the cost of the stored JSON being opaque outside the
+list page that wrote it (a saved view cannot be interpreted by, say, a
+future CSV export job without also reading that page's param-parsing code).
+Acceptable for v1: nothing outside the three list pages reads `SavedView`
+rows yet.
+
+### 10.3 `CustomFieldDef` deletion is a hard delete; values already written are left alone
+
+Unlike `WorkspaceOption` (`isArchived` flag, DECISIONS §8.6), `CustomFieldDef`
+has no archive flag in BUILD_SPEC §4's schema, and this milestone did not
+add one (a new migration for a flag felt like exactly the kind of
+speculative schema change the standing rules ask to avoid). Deleting a
+field definition is `db.customFieldDef.deleteMany({ where: { id, workspaceId } })`
+— nothing else in the schema holds a foreign key to it, since values live
+as plain JSON keyed by `.key` on the record's own `customFields` column.
+Consequence: a deleted field's historical values remain in old records'
+JSON, invisible (no def to render them against) but not erased. Judged
+acceptable — it mirrors how the model already treats `options` changes (no
+backfill of existing values either) — but is a real gap if "permanently
+scrub a field's data" is ever a compliance requirement; the fix then is
+a delete-time backfill pass, not a schema change.
+
+### 10.4 `CustomFieldDef.type = CURRENCY` follows the same integer-minor-units rule as every other amount
+
+BUILD_SPEC §8: money is `Decimal` in the DB and integer minor units in JS,
+never a float. A `CURRENCY` custom field's *value* lives inside a `Json`
+column (`Company.customFields` etc.), which has no `Decimal` type to fall
+back on, so the same discipline is enforced by convention instead:
+`src/lib/custom-fields.ts` validates a `CURRENCY` value as `Number.isInteger`
+and rejects a float, exactly like `src/lib/money.ts` does for `Deal.amount`.
+The create/edit forms (`custom-fields-fields.tsx`) still collect the value
+in dollars (matching the amount field's own UX) and convert with
+`Math.round(dollars * 100)` before it reaches an action — the float never
+touches storage, only the transient form input.
+
+### 10.5 A Deal's `pipelineId` is derived from `stageId`, never accepted as separate input
+
+BUILD_SPEC's `Deal` model carries both `pipelineId` and `stageId`. Every M2
+write instead takes only `stageId` and reads `pipelineId` off that stage
+(`stage.pipelineId`) inside `createDeal`/`updateDeal` — a stage belongs to
+exactly one pipeline, so accepting both independently would let a client
+send a mismatched pair (a real `stageId` paired with a different, wrong
+`pipelineId`) that nothing would catch until a query joining through the
+"wrong" pipeline silently returned nothing. Multi-pipeline management
+(creating/choosing among several pipelines) is BUILD_SPEC M3 — every M2
+deal form and filter pins to `Pipeline.isDefault`
+(`listDefaultPipelineStages`), the one every workspace gets from its
+vertical preset (DECISIONS §8.6) at creation.
+
+### 10.6 Managing `CustomFieldDef` requires ADMIN; every other M2 write requires MEMBER
+
+`src/server/permissions.ts` gained `canManageCustomFields = hasRole(role, "ADMIN")`,
+enforced at both the settings page (`requireWorkspace(slug, "ADMIN")`) and
+each custom-field action. Reasoning: a field definition changes what
+*every* member's create/edit form looks like — closer to `canInvite`
+(also ADMIN) than to record editing, which stays MEMBER-and-above like
+company/contact/deal create/edit/delete. `SavedView` writes are MEMBER —
+a saved view is closer to a personal (or opt-in shared) convenience than a
+structural change, even though the model supports `isShared`.
+
+### 10.7 A `WorkspaceOption` field with zero configured options accepts no value, ever — never "anything goes"
+
+`isValidWorkspaceOption` (`src/server/queries/workspace-options.ts`) returns
+`false` for every value when a workspace has zero active options of that
+`kind`. The tempting alternative — "no vocabulary configured, so don't
+block writes" — was considered and rejected while writing the function:
+it would let a `general_b2b` workspace (zero `deal_side` options, by
+design — DECISIONS §8.6) accept an arbitrary `side` string sent by a
+client, silently reintroducing exactly the loose, unvalidated field the
+vocabulary system exists to prevent. The tenancy suite asserts this
+directly ("rejects a `side` value for a workspace with no `deal_side`
+options configured"). The correct reading of "a workspace with no concept
+of sides ignores it entirely" (schema.prisma's own comment on `Deal.side`)
+is that the field stays `null` forever for that workspace — not that it
+becomes an unvalidated free-text field once no options exist.

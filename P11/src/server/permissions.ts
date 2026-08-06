@@ -28,6 +28,13 @@ export function canInvite(role: Role): boolean {
   return hasRole(role, "ADMIN");
 }
 
+/** ADMIN and above may add/edit/remove `CustomFieldDef` rows — a workspace's
+ * field vocabulary is a shared, structural setting (every member's forms
+ * change when it does), not a per-record edit. */
+export function canManageCustomFields(role: Role): boolean {
+  return hasRole(role, "ADMIN");
+}
+
 /**
  * A role may only grant a role at or below its own rank — an ADMIN cannot
  * invite an OWNER. Enforced here rather than left to the caller because

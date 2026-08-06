@@ -1,3 +1,4 @@
+import { PrimaryNav } from "@/components/app/primary-nav";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { listMyWorkspaces, requireWorkspace } from "@/server/tenancy";
 
@@ -20,15 +21,22 @@ export default async function WorkspaceLayout({
 
   return (
     <div className="bg-bg min-h-dvh">
-      <header className="border-border bg-surface flex min-h-14 items-center justify-between border-b px-4">
-        <WorkspaceSwitcher
-          current={{ id: workspace.id, name: workspace.name, slug: workspace.slug }}
-          workspaces={memberships.map((m) => ({
-            id: m.workspace.id,
-            name: m.workspace.name,
-            slug: m.workspace.slug,
-          }))}
-        />
+      <header className="border-border bg-surface flex min-h-14 items-center justify-between gap-4 border-b px-4">
+        <div className="flex items-center gap-2">
+          <WorkspaceSwitcher
+            current={{
+              id: workspace.id,
+              name: workspace.name,
+              slug: workspace.slug,
+            }}
+            workspaces={memberships.map((m) => ({
+              id: m.workspace.id,
+              name: m.workspace.name,
+              slug: m.workspace.slug,
+            }))}
+          />
+          <PrimaryNav workspaceSlug={slug} />
+        </div>
         <span className="text-fg-muted text-xs font-medium tracking-wide uppercase">
           {membership.role}
         </span>

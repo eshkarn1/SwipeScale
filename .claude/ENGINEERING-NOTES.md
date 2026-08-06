@@ -203,6 +203,26 @@ through.
   ship pointing at localhost.
 - **Server Components cannot use hooks or browser APIs.** Anything touching
   `window` needs `'use client'` and an effect.
+- **A Prisma `Decimal` field crossing a Server -> Client Component boundary
+  fails silently past `tsc`, `eslint`, and `next build`.** It only shows up as
+  a runtime console error — "Only plain objects can be passed to Client
+  Components from Server Components. Decimal objects are not supported." —
+  the moment a page with a non-null `Decimal` column actually renders. None
+  of the automated gates catch it: the Prisma-generated type for a `Decimal`
+  column is a real TS type, so passing the whole row through a client
+  component's props typechecks cleanly, and the dev-mode error is a console
+  log, not a thrown exception, so the page still renders (with the field
+  simply missing/garbled) and `next build`'s static analysis never touches
+  it. Found by actually loading a data-heavy list page in a browser and
+  reading the terminal — a Next.js dev-tools "N" badge in the corner turned
+  red with an issue count, which was the only visible symptom in the
+  screenshot itself. The same applies to a Server Action's return value
+  serialized back to the client (same Flight protocol). Fix: convert every
+  `Decimal` field to a plain string (`.toString()`) before it crosses either
+  boundary; `Date`, by contrast, *is* one of Flight's supported types and
+  needs no such conversion. Grep for every `Decimal`-typed column in
+  `schema.prisma` and check each one reaches a Client Component or an
+  action's return value only after that conversion.
 
 ### The LCP trap — it has now bitten three times, in two different technologies
 
