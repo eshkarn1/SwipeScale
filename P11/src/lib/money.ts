@@ -56,3 +56,44 @@ export function sumMinorUnits(amounts: readonly MinorUnits[]): MinorUnits {
   }
   return total;
 }
+
+/**
+ * The DB boundary. `Deal.amount` etc. are `Decimal(14,2)` — a decimal
+ * *major*-unit amount, e.g. `"1250.00"` for $1,250.00 — while every amount
+ * that reaches JS is integer minor units per BUILD_SPEC §8. These two
+ * functions are the only place a value is allowed to cross between the two
+ * representations, and both go through a string (never a division that
+ * lands on a JS float) so a value like `100019` cents becomes exactly
+ * `"1000.19"`, not `1000.1899999999999`.
+ */
+export function minorUnitsToDecimalString(minorUnits: MinorUnits): string {
+  if (!Number.isInteger(minorUnits)) {
+    throw new MoneyError(
+      `Money must be integer minor units, received ${minorUnits}.`,
+    );
+  }
+  const negative = minorUnits < 0;
+  const digits = Math.abs(minorUnits).toString().padStart(3, "0");
+  const majorPart = digits.slice(0, -2);
+  const minorPart = digits.slice(-2);
+  return `${negative ? "-" : ""}${majorPart}.${minorPart}`;
+}
+
+/**
+ * Inverse of {@link minorUnitsToDecimalString}. Accepts what Prisma hands
+ * back for a `Decimal` field: an object with `.toString()` (a `Decimal.js`
+ * instance), or a plain string/number for callers that already stringified
+ * it.
+ */
+export function decimalToMinorUnits(
+  value: { toString(): string } | string | number,
+): MinorUnits {
+  const asString = typeof value === "number" ? value.toFixed(2) : value.toString();
+  const [wholePart = "0", fractionalPart = ""] = asString.split(".");
+  const paddedFraction = (fractionalPart + "00").slice(0, 2);
+  const minorUnits = Number(`${wholePart}${paddedFraction}`);
+  if (!Number.isInteger(minorUnits)) {
+    throw new MoneyError(`Could not parse "${asString}" as money.`);
+  }
+  return minorUnits;
+}

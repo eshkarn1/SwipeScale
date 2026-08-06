@@ -5,16 +5,35 @@ on:
     branches: [main]
   pull_request:
 
-# No database and no secrets are required by this workflow.
-# `prisma generate` reads the schema only; it never dials a server.
+# `pnpm test` needs a database from M1 onward — `tenancy.test.ts`
+# (BUILD_SPEC §5) runs against a real Postgres, not a mock, because the
+# thing under test is a Prisma `where` clause. The `postgres` service below
+# is that database; no secrets beyond a throwaway local password are needed.
 env:
   NEXT_TELEMETRY_DISABLED: "1"
+  DATABASE_URL: "postgresql://lightline:lightline_ci_pw@localhost:5432/lightline_ci"
+  AUTH_SECRET: "ci-only-not-a-real-secret"
 
 jobs:
   verify:
     name: typecheck / lint / test
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: lightline
+          POSTGRES_PASSWORD: lightline_ci_pw
+          POSTGRES_DB: lightline_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lightline"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - uses: actions/checkout@v4
@@ -37,6 +56,9 @@ jobs:
       # src/generated/ and is gitignored, so a fresh checkout has no client.
       - name: Generate Prisma client
         run: pnpm db:generate
+
+      - name: Apply migrations
+        run: pnpm exec prisma migrate deploy
 
       # Sequenced deliberately. `build` and `typecheck` race on .next/types
       # and emit phantom duplicate-identifier errors when run in parallel.

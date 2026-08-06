@@ -359,3 +359,104 @@ only if a design partner actually hits it.
 Still not assumed either way: commission-split tracking (§2, open). The
 real-estate stage lifecycle remains seed data and is deliberately absent from
 `schema.prisma`.
+
+## 9. M1 — Auth & tenancy: choices worth following later
+
+Recorded per BUILD_SPEC §8, same rule as §8 above.
+
+### 9.1 `User` creation is not inside the Workspace+Membership transaction
+
+BUILD_SPEC §7.2 says "Signup creates User → Workspace → Membership(OWNER) in
+ONE transaction." Implemented as two steps instead: Auth.js's Prisma adapter
+creates the bare `User` row during sign-in (magic-link verification or
+Google OAuth callback), and `createWorkspaceForUser`
+(`src/server/services/workspace.ts`) creates `Workspace` + `Membership(OWNER)`
++ the vertical preset's pipeline/stages/options in one transaction once the
+user is authenticated and has no memberships yet (`/onboarding`).
+
+Reasoning: identity and tenancy are different trust boundaries. A magic-link
+or OAuth flow can only tell you "this person controls this email/Google
+account" at the moment `createUser` runs — the onboarding form (workspace
+name, vertical) hasn't been submitted yet for a first-time magic-link
+signup, and for Google there is no opportunity to collect it before the
+provider redirect at all. Folding workspace creation into the same
+transaction as user creation would mean creating a workspace for an
+unverified identity, which is worse than the two-step version, not just
+different from it. The atomicity BUILD_SPEC actually cares about — no
+workspace without an owner, no owner without a workspace — is preserved:
+`createWorkspaceForUser`'s transaction is exactly that pair (plus the preset
+rows), and it's the same function real onboarding and `prisma/seed.ts` both
+call, so there is one code path for "how a workspace comes into being."
+
+An invited user (`/join/[token]`) never goes through `createWorkspaceForUser`
+at all — `acceptInvite` (`src/server/services/invite.ts`) grants membership
+in an existing workspace instead, which is correct: an invitee should never
+get an extra workspace of their own as a side effect of accepting one.
+
+### 9.2 Auth.js session strategy is `"database"`, not the default-adjacent `"jwt"`
+
+With an adapter configured, Auth.js already defaults to database sessions,
+so this is a confirmation, not an override — worth stating because it was a
+real choice, not an accident. A JWT session would still work with both the
+Resend (email) and Google providers here; database sessions were kept
+because removing a `Session` row is an actual revocation (suspend a
+workspace, remove a member, kick a device) instead of waiting out a signed
+token's expiry. The cost is a DB read per authenticated request, accepted
+for v1.
+
+### 9.3 `User.avatarUrl` renamed to `User.image`
+
+BUILD_SPEC §4's `User` model has `avatarUrl`. `@auth/prisma-adapter` reads
+and writes a Prisma field literally named `image` (and `emailVerified`) with
+no remapping hook — the adapter's generated queries use those property names
+directly. Renamed rather than added a second field, since nothing outside
+`src/generated/` referenced the old name yet (checked before renaming).
+
+### 9.4 Rate limiting is a Postgres table, not Redis
+
+BUILD_SPEC §8 requires auth endpoints capped at 5 attempts / 15 min / IP.
+The stack table rules out Redis/BullMQ for v1. `RateLimitBucket`
+(`prisma/schema.prisma`) is a fixed-window counter, one atomic `upsert` per
+check (`src/server/rate-limit.ts`). It will not enforce a shared limit
+correctly across multiple *database* replicas with replication lag, but it
+is correct across multiple *app* instances sharing one primary, which is
+what v1's deploy target actually looks like. Revisit if/when read replicas
+enter the picture.
+
+### 9.5 Row-level security is enabled and verified, but not wired into the app yet
+
+BUILD_SPEC §5 asks for RLS "as a second net," documented in `docs/rls.md`.
+Every tenant table has a real, verified policy (`docs/rls.md` shows the
+actual `psql` output proving cross-tenant denial). What it does not yet do
+is apply to the app's own connection — that connection uses the same
+Postgres role that owns the tables, and closing that gap means both a
+second, lower-privileged role for `DATABASE_URL` *and* wrapping every
+tenant-scoped Prisma call in a transaction that sets `app.workspace_id` via
+`SET LOCAL` first. That's a change to every service's call sites, not a
+schema change, so it's flagged as explicit follow-up rather than attempted
+partially. `docs/rls.md` also records a real mistake made and caught while
+building this: `FORCE ROW LEVEL SECURITY` was applied first, which also
+applies RLS to the table owner — and since the app connects as the owner,
+it immediately zeroed out every query the app makes, caught by the test
+suite failing right after. Reverted before it went further. Left as a
+prominent warning in both the migration and `docs/rls.md` so it isn't
+repeated when someone picks up the wiring work.
+
+### 9.6 Seed data: ~60/~150/~80 applied per workspace, not split across the two
+
+BUILD_SPEC §7 M1 acceptance says "two demo workspaces with realistic data
+(≈60 companies, 150 contacts, 80 deals across stages)" — one set of numbers
+for two workspaces, read most naturally as a combined total. Applied to
+*each* workspace instead (`prisma/seed.ts`), because the second workspace's
+entire purpose is proving the vertical seam in DECISIONS §8.6 — it needs to
+be a complete, independently-browsable dataset, not a thin remainder split
+off the real-estate one. Flagged here as a deviation rather than assumed
+silently.
+
+### 9.7 Local Postgres: a second instance on port 5433, not the machine's existing one
+
+This machine already runs a system-wide Postgres 17 on port 5432, owned by
+other work already on it. Rather than share that instance or guess at its
+credentials, a second, isolated `postgresql@16` (via Homebrew, no Docker
+available) runs on port 5433, used by nothing but this project. See
+`docs/local-database.md`.

@@ -82,14 +82,73 @@ enum WorkspaceStatus {
 }
 
 model User {
-  id              String   @id @default(cuid())
-  email           String   @unique
+  id              String    @id @default(cuid())
+  email           String    @unique
+  /// Set once the magic-link callback or the OAuth provider has confirmed
+  /// this address. BUILD_SPEC's `avatarUrl`/no-`emailVerified` shape didn't
+  /// anticipate Auth.js: the Prisma adapter (`@auth/prisma-adapter`) reads
+  /// and writes `image` and `emailVerified` by these exact field names with
+  /// no remapping hook, so they are added here rather than under different
+  /// names. `avatarUrl` is renamed to `image` for the same reason — nothing
+  /// outside `src/generated/` referenced the old name. See DECISIONS §9.
+  emailVerified   DateTime?
   name            String?
-  avatarUrl       String?
-  isPlatformAdmin Boolean  @default(false) // owner-only admin area
-  createdAt       DateTime @default(now())
+  image           String?
+  isPlatformAdmin Boolean   @default(false) // owner-only admin area
+  createdAt       DateTime  @default(now())
 
   memberships Membership[]
+  accounts    Account[]
+  sessions    Session[]
+}
+
+/// Auth.js (`@auth/prisma-adapter`) OAuth account link — one row per
+/// provider a user has connected (Google in v1). Field names and the
+/// `[provider, providerAccountId]` unique constraint are exactly what the
+/// adapter's generated queries expect; do not rename.
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+/// Auth.js database session. v1 uses the "database" session strategy rather
+/// than JWT specifically so a suspended/removed membership or a revoked
+/// invite can be enforced by deleting the row, not just by waiting out a
+/// token's lifetime. See DECISIONS §9.
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Auth.js email (magic-link) verification token. One-time use — the
+/// adapter deletes the row on successful verification.
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
 
 model Membership {
@@ -425,6 +484,24 @@ model ApiKey {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
+}
+
+/// Fixed-window counter backing `src/server/rate-limit.ts`. BUILD_SPEC §8
+/// requires auth endpoints rate-limited at 5 attempts / 15 min / IP; the
+/// stack table rules out Redis/BullMQ for v1, and Postgres is already the
+/// one thing every deploy target has, so the limiter is a row here rather
+/// than an in-memory map (which would not be shared across serverless
+/// instances) or a new infra dependency.
+///
+/// Not workspace-scoped: `key` encodes whatever the caller is limiting by
+/// (`"magic-link:<ip>"`, `"invite-accept:<ip>"`), so this table is
+/// deliberately outside the tenant model in §5.
+model RateLimitBucket {
+  key         String
+  windowStart DateTime
+  count       Int      @default(0)
+
+  @@id([key, windowStart])
 }
 
 model AuditLog {

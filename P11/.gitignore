@@ -18,6 +18,11 @@ src/generated/
 
 # testing
 coverage/
+test-results/
+playwright-report/
+
+# dev-only fallback "mailbox" — see src/server/email.tsx
+.local/
 
 # misc
 *.tsbuildinfo
