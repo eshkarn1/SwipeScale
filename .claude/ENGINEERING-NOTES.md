@@ -73,6 +73,26 @@ Applies to every agent, without exception.
   element sits. Test the elements you care about, not the point.
 - **A headless WebGL frame rate is SwiftShader on the CPU.** Not a device
   number; do not report it as fps.
+- **A downscaled screenshot is not evidence about colour.** A full-page shot of
+  a long page arrives scaled ~3× down. In one, a toast on a dark page read as a
+  white card with dark text, and a whole "sonner is ignoring the theme
+  variables" diagnosis was written before checking. Sampling the pixels gave
+  `rgb(28,34,44)` — the correct token — and `getComputedStyle` agreed. What had
+  actually been visible was the toast's light *text* and its action button,
+  smeared together by the downscale. **Before writing up any colour defect,
+  sample the pixel or read the computed style.** Layout and composition survive
+  downscaling; colour and thin strokes do not.
+- **A contrast probe must composite alpha before it divides.** Tinted surfaces
+  (`rgb(232 163 61 / 0.14)`) come back from `getComputedStyle` as rgba, and a
+  naive luminance ratio of a colour against its own translucent tint returns
+  `1.0` — reported as a catastrophic failure that does not exist. Walk the
+  ancestor chain, composite every layer down to an opaque colour, then compute.
+  Done properly, the same badge measured 7.27:1.
+- **Playwright's `get_by_role` skips elements hidden from the accessibility
+  tree**, and Radix marks the rest of the page `aria-hidden` while a Select,
+  Dialog or Sheet is open. A role locator that resolved fine before the overlay
+  opened will time out immediately after, which looks like the trigger being
+  destroyed. Grab a CSS locator, or capture the handle before opening.
 
 When a measurement implies a defect, reproduce it a second way before writing
 it up. Two instruments agreeing is evidence; one instrument is a hypothesis.
@@ -121,6 +141,22 @@ through.
   Headless Chromium renders WebGL through **SwiftShader (CPU)** — frame-rate
   numbers from it are meaningless for real hardware. Say so rather than
   reporting them as fps.
+- **Use the Node version in the project's `.nvmrc`, not merely one that
+  satisfies `engines`.** A project pinning `24.16.0` was run on 20.20.2 —
+  inside its own `engines` range — and `pnpm test` died with
+  `TypeError: webidl.util.markAsUncloneable is not a function` from
+  `undici/lib/web/cache/cachestorage.js`, by way of jsdom. Nothing was wrong
+  with the tests; they pass 5/5 on 24.16.0. The stack trace names two
+  dependencies and never mentions Node, so this reads as a broken test suite
+  until you check `node -v` against `.nvmrc`. CI uses `node-version-file`, so
+  CI is right and you are wrong.
+- **Never run `build` while a `dev` server is live on the same `.next`.** Same
+  root cause as the typecheck race, different symptom: the *running dev server*
+  is what breaks. After a concurrent `pnpm build`, the page at localhost still
+  returned 200 but had lost a component — a Playwright locator that had matched
+  minutes earlier timed out, which looks exactly like a component you just
+  broke. `lsof -ti:3000 | xargs kill -9`, `rm -rf .next`, then run the two one
+  at a time.
 - **Never run `npm run build` and `npm run typecheck` concurrently.** They race
   on `.next/types` and emit phantom duplicate-identifier errors that look like
   real type failures. Run them in sequence.
@@ -269,7 +305,24 @@ transform, clip-path, `visibility`, and `content-visibility` all cause it.
   separate panels.
 - **Contrast is measured, never eyeballed.** Keep a script that parses the real
   token values and fails on regression.
-- **Tap targets clear 44px** even when the label is small (`min-h-11`).
+- **Tap targets clear 44px** even when the label is small (`min-h-11`). That
+  includes menu items and select options — a dropdown row is a tap target, and
+  it is the place a mis-fire is most likely to land on the destructive item
+  below.
+- **`transition-colors` covers `outline-color`, so it makes the focus ring fade
+  in.** Measured on a Tab: the ring rendered `rgb(76,49,10)` — a blend of the
+  label colour and the ring token — for the whole 150ms before settling on
+  `rgb(122,74,5)`. A focus indicator has to be correct on the frame it appears.
+  Spell the properties out: `transition-[color,background-color,border-color]`.
+- **A "quiet" text token is usually not AA at small sizes.** A token documented
+  as 4.12:1 was used for a 12px uppercase row label — it needs 4.5:1. Tokens
+  below 4.5 are for non-text UI (the 3:1 bar) and large text only; write that
+  restriction into the token's own comment, because "subtle/UI text" reads as
+  permission to use it on small labels.
+- **A `disabled:` and an `aria-busy:` rule on the same property are equally
+  specific**, so which one wins is decided by CSS source order — not by intent.
+  A loading button that must not also look faded should have the faded class
+  omitted in the component, not overridden by a second variant.
 - **`cursor-pointer` on every clickable element**, `disabled:cursor-not-allowed`
   on disabled ones.
 

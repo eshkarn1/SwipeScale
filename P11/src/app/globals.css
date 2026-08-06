@@ -58,8 +58,13 @@
      fg        #E6E9EF on surface = 14.62:1, on bg = 16.00:1
      fg-muted  #9AA3B2 on surface =  6.99:1, on bg =  7.65:1
      fg-subtle #6B7482 on surface =  3.76:1, on bg =  4.12:1
-               ^ UI text and large text only. NEVER body copy, never an input
-                 placeholder (placeholders use --color-fg-muted). */
+               ^ Both are UNDER the 4.5:1 that WCAG 1.4.3 asks of normal-size
+                 text, so in dark this token is for NON-TEXT use (borders,
+                 dividers, icon strokes — the 3:1 bar) and for large text only
+                 (≥24px, or ≥18.66px bold). It is not a "quiet label" colour:
+                 a 12px uppercase row label in fg-subtle measured 4.12:1 in the
+                 browser and had to move to fg-muted. Never body copy, never an
+                 input placeholder — those use --color-fg-muted. */
   --color-fg: #e6e9ef;
   --color-fg-muted: #9aa3b2;
   --color-fg-subtle: #6b7482;
@@ -141,6 +146,142 @@
   --font-mono:
     var(--font-geist-mono), ui-monospace, "SFMono-Regular", "Menlo", monospace;
   --font-sans: var(--font-display);
+
+  /* ── Motion (§6) ──────────────────────────────────────────────────────
+     200–300ms on ease [0.22, 1, 0.36, 1]. Declared here as `--animate-*`
+     tokens so Tailwind generates `animate-overlay-in`, `animate-dialog-in`
+     and friends, and so no primitive has to hand-write a duration or an
+     easing curve. Radix's Presence keeps an element mounted until its exit
+     animation ends, which is what makes the `-out` pairs work at all.
+
+     Every one of these is neutralised by the prefers-reduced-motion block in
+     the base layer below, which forces animation-duration to 0.01ms globally.
+     The enter/exit states remain correct because they animate opacity and
+     transform to their resting values — a closed dialog is simply gone. */
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-overlay-in: overlay-in 200ms var(--ease-out-quint);
+  --animate-overlay-out: overlay-out 160ms var(--ease-out-quint);
+  --animate-dialog-in: dialog-in 220ms var(--ease-out-quint);
+  --animate-dialog-out: dialog-out 160ms var(--ease-out-quint);
+  --animate-sheet-in-right: sheet-in-right 260ms var(--ease-out-quint);
+  --animate-sheet-out-right: sheet-out-right 200ms var(--ease-out-quint);
+  --animate-sheet-in-left: sheet-in-left 260ms var(--ease-out-quint);
+  --animate-sheet-out-left: sheet-out-left 200ms var(--ease-out-quint);
+  --animate-sheet-in-bottom: sheet-in-bottom 260ms var(--ease-out-quint);
+  --animate-sheet-out-bottom: sheet-out-bottom 200ms var(--ease-out-quint);
+  --animate-popover-in: popover-in 160ms var(--ease-out-quint);
+  --animate-popover-out: popover-out 120ms var(--ease-out-quint);
+
+  @keyframes overlay-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes overlay-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+  /* The centring translate is baked into these keyframes on purpose. A dialog
+     is centred with `translate(-50%, -50%)`, and an animation that sets
+     `transform` overrides that utility for as long as it runs — a keyframe of
+     `translateY(6px)` alone would drop the dialog to the bottom-right quadrant
+     for 220ms and snap it back. Keep the -50% pair in every frame. */
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%, calc(-50% + 6px)) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+  @keyframes dialog-out {
+    from {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translate(-50%, calc(-50% + 6px)) scale(0.98);
+    }
+  }
+  @keyframes sheet-in-right {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  @keyframes sheet-out-right {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes sheet-in-left {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  @keyframes sheet-out-left {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-100%);
+    }
+  }
+  @keyframes sheet-in-bottom {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  @keyframes sheet-out-bottom {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(100%);
+    }
+  }
+  @keyframes popover-in {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes popover-out {
+    from {
+      opacity: 1;
+      transform: scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

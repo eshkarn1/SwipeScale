@@ -31,6 +31,16 @@ model Workspace {
   slug                 String          @unique // used in URLs
   logoUrl              String?
   currency             String          @default("USD")
+  /// The configuration preset this workspace was created from — the ONE seam
+  /// that keeps vertical-specific defaults out of the schema (DECISIONS §8.6).
+  ///
+  /// Default pipelines and stages, the deal-contact role list, the deal-side
+  /// list, seed data and onboarding copy all branch on this. A String, not an
+  /// enum, so a second vertical is a new preset in code plus seed rows — never
+  /// a migration. Valid values are owned by the preset registry in
+  /// `src/server/services/`, and "real_estate" is v1's default because it is
+  /// the go-to-market wedge, not because the model assumes it.
+  vertical             String          @default("real_estate")
   plan                 Plan            @default(FREE)
   status               WorkspaceStatus @default(ACTIVE)
   stripeCustomerId     String?         @unique
@@ -42,6 +52,7 @@ model Workspace {
   members Membership[]
 
   // All tenant relations.
+  options         WorkspaceOption[]
   invites         Invite[]
   companies       Company[]
   contacts        Contact[]
@@ -100,6 +111,42 @@ enum Role {
   ADMIN
   MEMBER
   VIEWER
+}
+
+/// One selectable option in a workspace-configurable list. DECISIONS §8.6.
+///
+/// This is the generic version of what would otherwise be a Prisma enum per
+/// vertical. `Pipeline` and `Stage` are already per-workspace ROWS rather than
+/// enums, so stage names were never hardcoded; this extends that same pattern
+/// to the other short vocabularies a workspace needs.
+///
+/// One table rather than one table per list, because `kind` is a String:
+/// adding "deal_source" or "lost_reason" later is seed rows, not a migration.
+/// (`CustomFieldDef.entity` in BUILD_SPEC §4 is a String for the same reason.)
+///
+/// Known kinds in v1:
+///   "deal_contact_role" — the role a contact plays on a deal
+///   "deal_side"         — which party the workspace represents
+///
+/// Records store `value`, never this row's `id`, so a workspace can rename or
+/// archive an option without a data migration and without rewriting history.
+model WorkspaceOption {
+  id          String  @id @default(cuid())
+  workspaceId String
+  kind        String
+  /// Stable key written onto records, e.g. "SELLER". Never shown to a user.
+  value       String
+  /// What this workspace calls it, e.g. "Seller" or "Champion". Editable.
+  label       String
+  position    Int     @default(0)
+  /// Archived options stay resolvable for existing records but leave pickers,
+  /// which is why this is a flag and not a delete.
+  isArchived  Boolean @default(false)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, kind, value])
+  @@index([workspaceId, kind, position])
 }
 
 model Invite {
@@ -213,6 +260,13 @@ model Deal {
   companyId         String?
   ownerId           String?
   title             String
+  /// Which party we represent on this deal (DECISIONS §8.6).
+  ///
+  /// A `WorkspaceOption.value` with `kind = "deal_side"`. The real-estate
+  /// preset seeds LISTING / BUYER; a workspace with no concept of sides leaves
+  /// this null and never sees the field. Deliberately not an enum — see the
+  /// note on `DealContact.role`.
+  side              String?
   amount            Decimal   @default(0) @db.Decimal(14, 2)
   currency          String    @default("USD")
   expectedCloseDate DateTime?
@@ -240,12 +294,28 @@ model Deal {
 model DealContact {
   dealId    String
   contactId String
+  /// The role this contact plays IN THIS TRANSACTION (DECISIONS §8.6).
+  ///
+  /// A `WorkspaceOption.value` with `kind = "deal_contact_role"`, not a Prisma
+  /// enum: real estate wants seller/buyer/lender, B2B wants
+  /// champion/decision-maker/procurement, and an enum would need a migration
+  /// per vertical. Stored as the value rather than a foreign key so renaming
+  /// or archiving an option never rewrites history, and so this join does not
+  /// have to carry a `workspaceId` the spec never gave it.
+  ///
+  /// Nullable: a workspace with no role vocabulary simply leaves it unset.
+  /// Validated against the workspace's option list in the service layer.
+  role      String?
   isPrimary Boolean @default(false)
 
   deal    Deal    @relation(fields: [dealId], references: [id], onDelete: Cascade)
   contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@id([dealId, contactId])
+  /// "Every deal this person has ever been the seller on" is the query that
+  /// makes dual-role handling visible in the UI, and it runs from the contact
+  /// side, which no other index covers.
+  @@index([contactId, role])
 }
 
 /// Append-only. This table is what makes real reporting possible

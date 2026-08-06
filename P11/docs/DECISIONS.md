@@ -272,3 +272,90 @@ What each tier *gates* remains open and blocks M6. It does not block M0-M5.
 If a fifth conflict appears, it is resolved the same way — this document wins —
 but it gets an entry here rather than a silent choice in code. A reconciliation
 nobody wrote down is indistinguishable from a mistake six weeks later.
+
+### 8.6 The schema stays industry-neutral; real estate is the default preset
+
+**Owner's constraint, verbatim:** _"this project is for real estate agents but I
+dont want to limit it there keep it in mind."_
+
+This supersedes what §8.3 above implies. §8.3 is still correct about *behaviour*
+— a deal has a represented party, a contact's role is per-transaction — but it
+must not be read as licence to name real-estate concepts in the core schema.
+§2 already said the same thing in one line, "this is the wedge, not the
+ceiling", and it was under-weighted.
+
+**The principle: verticalise the configuration, not the schema.**
+
+The spec already works this way and it is worth noticing why. `Pipeline` and
+`Stage` are per-workspace **rows**, not enums, which is precisely why the
+real-estate stage lifecycle in §8.3 was never going to be hardcoded — it is
+seed data. Every other short vocabulary a vertical needs gets the same
+treatment rather than a new enum.
+
+**What was almost built, and why it was wrong.** A first pass added
+`enum DealSide { LISTING, BUYER }` and a seven-member `enum DealContactRole`
+(SELLER / BUYER / CO_BUYER / AGENT / LENDER / ATTORNEY / OTHER), both required.
+That is a real-estate brokerage compiled into the data model. The tell is the
+migration cost of the second vertical: a B2B workspace wanting
+champion / decision-maker / procurement would need a schema change, a
+deploy, and an enum whose members are meaningless to two thirds of the
+customers reading them. Caught while `prisma/migrations/` was still empty, so
+the correction was free — which is the whole reason schema work went first.
+
+**What is in the schema now:**
+
+- **`DealContact.role` — `String?`.** The capability §8.3 asked for, without the
+  lock. It stores a `WorkspaceOption.value` of kind `"deal_contact_role"`.
+  Critically the role still sits on the **join**, not on `Contact`: that part of
+  §8.3 was right and is the actual dual-role requirement. A `Contact.role`
+  column would force the seller-turned-buyer to be duplicated or overwritten,
+  and either outcome destroys the history that makes a past client worth
+  keeping. Nullable, because a workspace with no role vocabulary should simply
+  never see the field.
+- **`Deal.side` — `String?`.** Generalised from "listing or buyer" to "which
+  party do we represent", a `WorkspaceOption.value` of kind `"deal_side"`.
+  Optional for the same reason: a workspace with no concept of sides ignores it
+  entirely. The real-estate preset seeds `LISTING` / `BUYER`, so nothing is lost
+  for the wedge buyer.
+- **`Workspace.vertical` — `String @default("real_estate")`.** The one seam.
+  Default pipelines and stages, both option lists, seed data and onboarding copy
+  branch on this single field, which is what keeps vertical-specific defaults
+  out of every other table. A `String` rather than an enum so that adding a
+  vertical is a new preset in code plus seed rows — never a migration. The
+  preset registry in `src/server/services/` owns the set of valid values.
+- **`model WorkspaceOption`** — `(workspaceId, kind, value, label, position,
+  isArchived)`, unique on `(workspaceId, kind, value)`.
+
+**Why one generic option table rather than two small ones.** The judgement call
+was left open; this is the cheaper side. `kind` is a `String`, so the next list
+a vertical needs — `deal_source`, `lost_reason`, `property_type` — is seed rows
+against an existing table rather than another migration. Two purpose-built
+tables would each need one. `CustomFieldDef.entity` in BUILD_SPEC §4 is already
+a loose `String` for exactly this reason, so this matches the house idiom rather
+than inventing one.
+
+Three properties of that table that were deliberate:
+
+- Records store `value`, **not** the option row's `id`. A workspace can rename
+  "Seller" to "Vendor" or archive it without a data migration, and without
+  rewriting what historic deals say. It also means `DealContact` does not need
+  the `workspaceId` column BUILD_SPEC §4 never gave it in order to hold a
+  composite foreign key. The cost is that validity is enforced in the service
+  layer rather than by the database — accepted, and it is where the tenant guard
+  already lives.
+- `isArchived` is a flag, not a delete, so retired options stay resolvable for
+  existing records while leaving the pickers.
+- `@@index([contactId, role])` on `DealContact`. "Every deal this person was the
+  seller on" is the query that makes dual-role handling visible in the UI, it
+  runs from the contact side, and no other index covers it.
+
+One consequence worth stating rather than discovering later: the primary key
+stays `@@id([dealId, contactId])`, so **one person holds one role per deal**. A
+person who is both the seller and the listing agent on the same file cannot be
+represented. Judged acceptable — it is rare, and widening the key to include
+`role` makes "the contacts on this deal" a `DISTINCT` query forever. Revisit
+only if a design partner actually hits it.
+
+Still not assumed either way: commission-split tracking (§2, open). The
+real-estate stage lifecycle remains seed data and is deliberately absent from
+`schema.prisma`.
