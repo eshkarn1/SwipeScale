@@ -1,0 +1,32 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# next.js
+.next/
+out/
+build/
+next-env.d.ts
+
+# prisma — generated client (see generator `output` in prisma/schema.prisma)
+src/generated/
+
+# env — .env.example IS committed, nothing else is
+.env
+.env.*
+!.env.example
+
+# testing
+coverage/
+
+# misc
+*.tsbuildinfo
+.vercel/
+.DS_Store
+
+# iCloud sync conflict forks: this Desktop forks regenerated files under
+# "<name> 2.<ext>". They are never real source.
+* [0-9].ts
+* [0-9].tsx
+* [0-9].js
+* [0-9].mjs

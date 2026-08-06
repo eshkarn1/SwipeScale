@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# No database and no secrets are required by this workflow.
+# `prisma generate` reads the schema only; it never dials a server.
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  verify:
+    name: typecheck / lint / test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+
+      - name: Use Node from .nvmrc
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Must run before typecheck: the Prisma client is generated into
+      # src/generated/ and is gitignored, so a fresh checkout has no client.
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      # Sequenced deliberately. `build` and `typecheck` race on .next/types
+      # and emit phantom duplicate-identifier errors when run in parallel.
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Unit tests
+        run: pnpm test

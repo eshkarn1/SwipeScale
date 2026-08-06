@@ -1,0 +1,373 @@
+// Data model.
+//
+// The product name deliberately does not appear here: Prisma embeds this
+// file verbatim into the generated client, which would defeat the
+// "one constant, one-line rename" rule in BUILD_SPEC §1. See src/config/brand.ts.
+//
+// Transcribed from docs/BUILD_SPEC.md §4. Abbreviated relation lists in the
+// spec ("// ... all tenant relations") are completed here, because Prisma
+// requires both sides of every relation for `prisma validate` to pass.
+//
+// Every tenant-scoped model carries `workspaceId` and is indexed on it,
+// and holds an explicit relation back to Workspace.
+//
+// No seed data, no default stage names, no enum renames live here.
+// The real-estate stage lifecycle (DECISIONS §2) belongs in a seed script.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Tenancy & identity ----------
+
+model Workspace {
+  id                   String          @id @default(cuid())
+  name                 String
+  slug                 String          @unique // used in URLs
+  logoUrl              String?
+  currency             String          @default("USD")
+  plan                 Plan            @default(FREE)
+  status               WorkspaceStatus @default(ACTIVE)
+  stripeCustomerId     String?         @unique
+  stripeSubscriptionId String?         @unique
+  trialEndsAt          DateTime?
+  createdAt            DateTime        @default(now())
+  deletedAt            DateTime?
+
+  members Membership[]
+
+  // All tenant relations.
+  invites         Invite[]
+  companies       Company[]
+  contacts        Contact[]
+  pipelines       Pipeline[]
+  stages          Stage[]
+  deals           Deal[]
+  dealStageEvents DealStageEvent[]
+  activities      Activity[]
+  customFieldDefs CustomFieldDef[]
+  savedViews      SavedView[]
+  apiKeys         ApiKey[]
+  auditLogs       AuditLog[]
+}
+
+enum Plan {
+  FREE
+  STARTER
+  GROWTH
+  SCALE
+}
+
+enum WorkspaceStatus {
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELLED
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  name            String?
+  avatarUrl       String?
+  isPlatformAdmin Boolean  @default(false) // owner-only admin area
+  createdAt       DateTime @default(now())
+
+  memberships Membership[]
+}
+
+model Membership {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        Role     @default(MEMBER)
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+model Invite {
+  id          String    @id @default(cuid())
+  workspaceId String
+  email       String
+  role        Role      @default(MEMBER)
+  token       String    @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+// ---------- CRM core ----------
+
+model Company {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  name           String
+  domain         String?
+  industry       String?
+  employees      Int?
+  annualRevenue  Decimal?  @db.Decimal(14, 2)
+  addressCity    String?
+  addressCountry String?
+  linkedinUrl    String?
+  ownerId        String? // Membership id
+  customFields   Json      @default("{}")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contacts  Contact[]
+  deals     Deal[]
+
+  @@index([workspaceId, deletedAt])
+  @@index([workspaceId, name])
+}
+
+model Contact {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  companyId    String?
+  firstName    String
+  lastName     String?
+  email        String?
+  phone        String?
+  jobTitle     String?
+  linkedinUrl  String?
+  ownerId      String?
+  customFields Json      @default("{}")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  company   Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  deals     DealContact[]
+
+  @@index([workspaceId, deletedAt])
+  @@index([workspaceId, email])
+}
+
+model Pipeline {
+  id          String  @id @default(cuid())
+  workspaceId String
+  name        String
+  isDefault   Boolean @default(false)
+  position    Int     @default(0)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  stages    Stage[]
+  deals     Deal[]
+
+  @@index([workspaceId])
+}
+
+model Stage {
+  id          String    @id @default(cuid())
+  workspaceId String
+  pipelineId  String
+  name        String
+  position    Int
+  probability Int       @default(0) // 0-100, drives weighted forecast
+  type        StageType @default(OPEN)
+  color       String    @default("amber")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pipeline  Pipeline  @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  deals     Deal[]
+
+  @@index([workspaceId])
+  @@index([pipelineId, position])
+}
+
+enum StageType {
+  OPEN
+  WON
+  LOST
+}
+
+model Deal {
+  id                String    @id @default(cuid())
+  workspaceId       String
+  pipelineId        String
+  stageId           String
+  companyId         String?
+  ownerId           String?
+  title             String
+  amount            Decimal   @default(0) @db.Decimal(14, 2)
+  currency          String    @default("USD")
+  expectedCloseDate DateTime?
+  closedAt          DateTime?
+  lostReason        String?
+  source            String?
+  position          Float     @default(0) // ordering within a stage column
+  customFields      Json      @default("{}")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pipeline    Pipeline         @relation(fields: [pipelineId], references: [id])
+  stage       Stage            @relation(fields: [stageId], references: [id])
+  company     Company?         @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contacts    DealContact[]
+  stageEvents DealStageEvent[]
+
+  @@index([workspaceId, deletedAt])
+  @@index([workspaceId, stageId, position])
+  @@index([workspaceId, expectedCloseDate])
+}
+
+model DealContact {
+  dealId    String
+  contactId String
+  isPrimary Boolean @default(false)
+
+  deal    Deal    @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@id([dealId, contactId])
+}
+
+/// Append-only. This table is what makes real reporting possible
+/// (velocity, conversion by stage, time-in-stage). Never update or delete rows.
+model DealStageEvent {
+  id          String   @id @default(cuid())
+  workspaceId String
+  dealId      String
+  fromStageId String?
+  toStageId   String
+  amount      Decimal  @db.Decimal(14, 2)
+  changedById String?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  deal      Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([dealId, createdAt])
+}
+
+// ---------- Work & audit ----------
+
+model Activity {
+  id          String       @id @default(cuid())
+  workspaceId String
+  type        ActivityType
+  title       String
+  body        String?      @db.Text
+  dueAt       DateTime?
+  completedAt DateTime?
+  assigneeId  String?
+  createdById String?
+  dealId      String?
+  companyId   String?
+  contactId   String?
+  createdAt   DateTime     @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, dueAt])
+  @@index([workspaceId, dealId])
+}
+
+enum ActivityType {
+  NOTE
+  TASK
+  CALL
+  MEETING
+  EMAIL
+}
+
+model CustomFieldDef {
+  id          String    @id @default(cuid())
+  workspaceId String
+  entity      String // "deal" | "company" | "contact"
+  key         String
+  label       String
+  type        FieldType
+  options     Json? // for SELECT
+  position    Int       @default(0)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, entity, key])
+}
+
+enum FieldType {
+  TEXT
+  NUMBER
+  CURRENCY
+  DATE
+  SELECT
+  MULTISELECT
+  BOOLEAN
+  URL
+}
+
+model SavedView {
+  id          String  @id @default(cuid())
+  workspaceId String
+  createdById String?
+  entity      String
+  name        String
+  filters     Json    @default("{}")
+  sort        Json    @default("{}")
+  columns     Json    @default("[]")
+  isShared    Boolean @default(false)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, entity])
+}
+
+/// Retained even though the public API is cut from v1 (DECISIONS §7), so that
+/// exposing it later is an authentication problem rather than a migration.
+model ApiKey {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  hashedKey   String    @unique // store SHA-256, show plaintext once
+  prefix      String // first 8 chars, for display
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  workspaceId String
+  actorId     String?
+  action      String // "deal.stage_changed"
+  entity      String
+  entityId    String
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+}

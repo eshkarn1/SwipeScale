@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+build
+pnpm-lock.yaml
+
+# Generated Prisma client — not hand-edited, not ours to format.
+src/generated
+
+# Owner-authored specification documents. Prettier reflows markdown tables
+# destructively; these must stay byte-stable so diffs against the spec are
+# meaningful.
+docs/
+ROADMAP.md

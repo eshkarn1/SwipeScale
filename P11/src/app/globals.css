@@ -1,0 +1,293 @@
+/*
+ * Lightline design tokens — the single home of every colour literal.
+ *
+ * Tailwind v4, CSS-first. There is no tailwind.config.js and there must not be.
+ *
+ * ── THE RULE ──────────────────────────────────────────────────────────────
+ * No hex, rgb, hsl or oklch literal may appear in `src/components/**` or in
+ * any `src/app/**\/page.tsx`. Colour literals live here and nowhere else.
+ * Components consume Tailwind utilities generated from these tokens
+ * (`bg-surface`, `text-fg-muted`, `border-border`, `outline-ring`, …).
+ *
+ * ── HOW THEMING WORKS ─────────────────────────────────────────────────────
+ * Tailwind v4 utilities compile to `var(--color-x)`, not to a baked value.
+ * So the dark set is declared once in `@theme static` (which lands in
+ * `@layer theme` on `:root`) and the light set simply re-declares the same
+ * custom properties on `[data-theme="light"]`. That selector is UNLAYERED, so
+ * it outranks the layered `:root` declarations regardless of specificity, and
+ * every descendant utility re-resolves. `@theme static` (rather than plain
+ * `@theme`) stops Tailwind tree-shaking tokens that only the light set or a
+ * future component references.
+ *
+ * next-themes is configured with `attribute="data-theme"`, so it writes
+ * `data-theme="light"` / `"dark"` onto <html>. Dark is the default and needs
+ * no attribute to be correct.
+ *
+ * ── CONTRAST ──────────────────────────────────────────────────────────────
+ * Every ratio in the comments below was COMPUTED (WCAG 2.1 relative luminance,
+ * alpha layers composited over their real backdrop first), not estimated.
+ * Do not edit a colour here without recomputing the pair it appears in.
+ *
+ * BUILD_SPEC §6 (design direction), §0 (this palette is deliberately not
+ * anyone else's — dark control room, warm amber, mono numerals).
+ */
+
+@import "tailwindcss";
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DARK — the default and the better of the two themes (BUILD_SPEC §6)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@theme static {
+  /* ── Surfaces ─────────────────────────────────────────────────────────
+     §6 mandates #0B0D10 base, #141820 panels, hairline borders at 8% white. */
+  --color-bg: #0b0d10;
+  --color-surface: #141820;
+  --color-surface-raised: #1c222c;
+
+  /* Hairline. DECORATIVE ONLY — panel edges, dividers, table rules.
+     Composites to #272A32 over surface = 1.24:1. That is below the 3:1 of
+     WCAG 1.4.11, which is why form-control boundaries use --color-border-strong
+     instead and never this. */
+  --color-border: rgb(255 255 255 / 0.08);
+  /* Control boundaries, hover and rest state of inputs.
+     Composites to #696B70 over surface = 3.33:1, over bg = 3.28:1. PASS 1.4.11. */
+  --color-border-strong: rgb(255 255 255 / 0.36);
+
+  /* ── Text ─────────────────────────────────────────────────────────────
+     fg        #E6E9EF on surface = 14.62:1, on bg = 16.00:1
+     fg-muted  #9AA3B2 on surface =  6.99:1, on bg =  7.65:1
+     fg-subtle #6B7482 on surface =  3.76:1, on bg =  4.12:1
+               ^ UI text and large text only. NEVER body copy, never an input
+                 placeholder (placeholders use --color-fg-muted). */
+  --color-fg: #e6e9ef;
+  --color-fg-muted: #9aa3b2;
+  --color-fg-subtle: #6b7482;
+
+  /* ── Accent: warm amber/copper (§6). Primary actions + won-state. ─────
+     accent as text on bg      = 9.02:1
+     accent as text on surface = 8.24:1
+     accent-fg ON accent       = 9.02:1   ← the primary Button's label
+     white    ON accent        = 2.16:1   ← HARD FAIL. Never do this.
+     accent   ON accent-muted  = 6.46:1   ← the "won" Badge */
+  --color-accent: #e8a33d;
+  --color-accent-fg: #0b0d10;
+  /* Accent used as FOREGROUND on a page/panel surface. Identical to --color-accent
+     in dark; diverges in light, where amber-on-white is 2.16:1. See the light
+     block. Anything that paints accent as text/icon must use this, not --color-accent. */
+  --color-accent-text: #e8a33d;
+  --color-accent-muted: rgb(232 163 61 / 0.14);
+
+  /* ── Danger: destructive actions and lost-state ONLY (§6). ────────────
+     danger as text on surface = 5.27:1
+     danger as text on bg      = 5.77:1
+     danger-fg ON danger       = 5.77:1
+     danger   ON danger-muted  = 4.74:1   ← the "lost" Badge */
+  --color-danger: #f2555b;
+  --color-danger-fg: #0b0d10;
+  --color-danger-muted: rgb(242 85 91 / 0.1);
+
+  /* ── Success ──────────────────────────────────────────────────────────
+     DECISION (BUILD_SPEC §6): won-state is the ACCENT, not green. There is no
+     green in this product. --color-success exists so the token contract is
+     complete and so a success toast has a name to reach for, but it is an
+     alias of accent by design. Do not give it a green value later without
+     revisiting §6 — a second "positive" hue splits the visual language. */
+  --color-success: var(--color-accent-text);
+  --color-success-fg: var(--color-accent-fg);
+  --color-success-muted: var(--color-accent-muted);
+
+  /* ── Focus ring ───────────────────────────────────────────────────────
+     9.02:1 vs bg, 8.24:1 vs surface, 7.41:1 vs surface-raised. Well past the
+     3:1 that WCAG 2.4.11/1.4.11 asks of a focus indicator. */
+  --color-ring: #e8a33d;
+
+  /* ── Utility surfaces ─────────────────────────────────────────────────
+     Named so no component needs a literal for a scrim or a loading block. */
+  --color-overlay: rgb(6 8 11 / 0.72);
+  --color-skeleton: rgb(255 255 255 / 0.07);
+
+  /* ══ Non-colour tokens ══════════════════════════════════════════════ */
+
+  /* Radii. Overrides Tailwind's defaults, so rounded-sm/md/lg/xl are ours. */
+  --radius-sm: 0.375rem; /*  6px — badges, chips */
+  --radius-md: 0.625rem; /* 10px — buttons, inputs, menu items */
+  --radius-lg: 0.875rem; /* 14px — cards, popovers, panels */
+  --radius-xl: 1.25rem; /* 20px — dialogs, sheets */
+
+  /* §6 density: 44px row height. Also satisfies the 44px minimum tap target,
+     which is why every interactive primitive is min-h-11 (11 × 0.25rem = 44px)
+     rather than sized to its label. */
+  --row-height: 44px;
+
+  /* Elevation. Black-based so it reads on the near-black base; on the light
+     theme these are re-declared softer. */
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+  --shadow-popover:
+    0 2px 4px rgb(0 0 0 / 0.4), 0 16px 40px -12px rgb(0 0 0 / 0.7);
+
+  /* ── Type (§6) ────────────────────────────────────────────────────────
+     Display: Space Grotesk — geometric with personality, self-hosted by
+     next/font/google at build time. §6 suggested Satoshi / General Sans; both
+     are Fontshare-only (no npm, no Google Fonts) and would need a manual
+     download, so they were not fetched. See docs/DECISIONS.md.
+     Body + numerals: Geist Mono, from the `geist` npm package (fully local).
+     §6 is explicit: NEVER Inter as the primary.
+     The `--font-geist-mono` / `--font-space-grotesk` variables are injected on
+     <html> by src/app/layout.tsx. */
+  --font-display:
+    var(--font-space-grotesk), ui-sans-serif, system-ui, -apple-system,
+    sans-serif;
+  --font-mono:
+    var(--font-geist-mono), ui-monospace, "SFMono-Regular", "Menlo", monospace;
+  --font-sans: var(--font-display);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LIGHT — secondary. Selector is [data-theme="light"], written by next-themes.
+   Unlayered, so it beats the @layer theme declarations above.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="light"] {
+  --color-bg: #f4f5f7;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+
+  /* #E7E7E7 over white = 1.24:1 — decorative hairline, same role as dark. */
+  --color-border: rgb(11 13 16 / 0.1);
+  /* #858688 over white = 3.64:1, over bg = 3.57:1. PASS 1.4.11. */
+  --color-border-strong: rgb(11 13 16 / 0.5);
+
+  /* fg        #0B0D10 on surface = 19.46:1, on bg = 17.84:1
+     fg-muted  #4E5666 on surface =  7.38:1, on bg =  6.76:1
+     fg-subtle #68707E on surface =  4.99:1, on bg =  4.58:1 */
+  --color-fg: #0b0d10;
+  --color-fg-muted: #4e5666;
+  --color-fg-subtle: #68707e;
+
+  /* The amber FILL is unchanged across themes on purpose: the primary Button is
+     the same object in both, amber with a near-black label at 9.02:1.
+     What cannot survive is amber as TEXT — #E8A33D on #FFFFFF is 2.16:1, an
+     outright AA failure. So --color-accent-text darkens to a copper:
+       #7A4A05 on surface      = 7.48:1
+       #7A4A05 on bg           = 6.85:1
+       #7A4A05 on accent-muted = 6.37:1  ← the "won" Badge */
+  --color-accent: #e8a33d;
+  --color-accent-fg: #0b0d10;
+  --color-accent-text: #7a4a05;
+  --color-accent-muted: rgb(232 163 61 / 0.22);
+
+  /* danger as text on surface = 6.57:1, on bg = 6.03:1
+     danger-fg (white) ON danger = 6.57:1
+     danger ON danger-muted = 5.40:1  ← the "lost" Badge
+     Note the label on a danger fill flips to white here, because the light
+     theme's danger is a deep red rather than dark's bright one. */
+  --color-danger: #b42318;
+  --color-danger-fg: #ffffff;
+  --color-danger-muted: rgb(180 35 24 / 0.12);
+
+  /* Focus ring must clear 3:1 against what it sits on. The raw amber cannot
+     (2.16:1 on white), so light uses the copper: 7.48:1 on surface, 6.85:1 on bg. */
+  --color-ring: #7a4a05;
+
+  --color-overlay: rgb(11 13 16 / 0.45);
+  --color-skeleton: rgb(11 13 16 / 0.09);
+
+  --shadow-panel:
+    0 1px 2px rgb(11 13 16 / 0.06), 0 8px 24px -12px rgb(11 13 16 / 0.18);
+  --shadow-popover:
+    0 2px 4px rgb(11 13 16 / 0.08), 0 16px 40px -12px rgb(11 13 16 / 0.24);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Base layer
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  :root {
+    /* Makes native widgets, scrollbars and form controls follow the theme.
+       next-themes also sets this inline; declaring it keeps SSR correct before
+       hydration so the first paint is not a white scrollbar on a black page. */
+    color-scheme: dark;
+  }
+
+  [data-theme="light"] {
+    color-scheme: light;
+  }
+
+  html {
+    /* §6 density: 16px base, not the 14px that makes dense CRMs feel cramped. */
+    font-size: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-fg);
+    /* §6: body and numbers in Geist Mono, for tabular figures. */
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  /* Every number in this product is a column of figures that has to line up. */
+  table,
+  [data-tabular] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-muted);
+    color: var(--color-fg);
+  }
+
+  /* Backstop only. Every interactive primitive declares its own
+     focus-visible ring; this catches anything that forgets, so nothing can
+     ever ship with an invisible keyboard focus. */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  /* BUILD_SPEC §6 requires prefers-reduced-motion be respected. Primitives opt
+     out individually via motion-reduce:*; this is the global floor for anything
+     (Radix animations, sonner) that we do not author. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Utilities
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* §6 mandates a 44px row. Exposed as a utility so table/list rows read the
+   token rather than re-deriving 44px, and so changing density is one edit. */
+@utility h-row {
+  height: var(--row-height);
+}
+
+@utility min-h-row {
+  min-height: var(--row-height);
+}
