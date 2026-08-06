@@ -283,16 +283,26 @@ def h(width: int) -> int:
 
 
 HERO_TIERS = {
-    "1920": dict(width=1920, height=h(1920), density=11.0, line_px=1.05, quality=72),
-    "1440": dict(width=1440, height=h(1440), density=11.0, line_px=1.05, quality=70),
-    "0960": dict(width=960, height=h(960), density=11.0, line_px=1.05, quality=50),
+    "1920": dict(width=1920, height=h(1920), density=11.0, line_px=1.05, quality=55),
+    "1440": dict(width=1440, height=h(1440), density=11.0, line_px=1.05, quality=42),
+    "0960": dict(width=960, height=h(960), density=11.0, line_px=1.05, quality=38),
 }
-HERO_HALF = dict(width=960, height=h(960), density=11.0, line_px=1.05, quality=68)
+HERO_HALF = dict(width=960, height=h(960), density=11.0, line_px=1.05, quality=38)
 
+# Density is the single axis that differs between the three cases (spec
+# requirement: vary one thing). Quality is tuned PER CASE PER TIER purely to
+# compensate for how differently sparse vs. dense linework compresses — a
+# sparse case (case-01) needs a higher quality factor to reach the same byte
+# budget a dense case (case-03) reaches at a lower one. This is a compression
+# knob, not a second content axis.
 CASE_DENSITY = {"case-01": 8.0, "case-02": 11.0, "case-03": 15.0}
-CASE_TIERS = {
-    "0960": dict(width=960, height=h(960), line_px=1.05, quality=70),
-    "0640": dict(width=640, height=h(640), line_px=1.0, quality=68),
+CASE_QUALITY = {
+    "0960": {"case-01": 92, "case-02": 88, "case-03": 84},
+    "0640": {"case-01": 90, "case-02": 80, "case-03": 65},
+}
+CASE_TIER_GEOM = {
+    "0960": dict(width=960, height=h(960), line_px=1.05),
+    "0640": dict(width=640, height=h(640), line_px=1.0),
 }
 
 SEED = {"hero": 11, "case-01": 21, "case-02": 22, "case-03": 23}
@@ -385,13 +395,14 @@ def main() -> None:
         seed = SEED[case_id]
         label = LABEL[case_id]
         density = CASE_DENSITY[case_id]
-        for tier_name, cfg in CASE_TIERS.items():
+        for tier_name, cfg in CASE_TIER_GEOM.items():
             if args.tier and tier_name != args.tier:
                 continue
+            quality = CASE_QUALITY[tier_name][case_id]
             count, nbytes, stray = render_tier(
                 case_id, label, SEQ_DIR / case_id / tier_name, 48, True,
                 cfg["width"], cfg["height"], density, cfg["line_px"],
-                cfg["quality"], seed,
+                quality, seed,
             )
             report.append((case_id, tier_name, count, nbytes, stray))
 

@@ -8,8 +8,16 @@
   "posterFrame": 1,
   "posterPath": "/seq/case-03/poster.webp",
   "tiers": [
-    { "width": 640, "path": "/seq/case-03/0640", "bytes": 0 },
-    { "width": 960, "path": "/seq/case-03/0960", "bytes": 0 }
+    {
+      "width": 640,
+      "path": "/seq/case-03/0640",
+      "bytes": 629862
+    },
+    {
+      "width": 960,
+      "path": "/seq/case-03/0960",
+      "bytes": 1642650
+    }
   ],
   "filePattern": "frame_{n}.webp",
   "padding": 4

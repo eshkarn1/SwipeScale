@@ -8,11 +8,29 @@
   "posterFrame": 1,
   "posterPath": "/seq/hero/poster.webp",
   "tiers": [
-    { "width": 960,  "path": "/seq/hero/0960", "bytes": 0 },
-    { "width": 1440, "path": "/seq/hero/1440", "bytes": 0 },
-    { "width": 1920, "path": "/seq/hero/1920", "bytes": 0 }
+    {
+      "width": 960,
+      "path": "/seq/hero/0960",
+      "bytes": 2930454
+    },
+    {
+      "width": 1440,
+      "path": "/seq/hero/1440",
+      "bytes": 4778310
+    },
+    {
+      "width": 1920,
+      "path": "/seq/hero/1920",
+      "bytes": 7795932
+    }
   ],
-  "mobileVariant": { "width": 960, "path": "/seq/hero/0960-half", "frameCount": 90, "step": 2, "bytes": 0 },
+  "mobileVariant": {
+    "width": 960,
+    "path": "/seq/hero/0960-half",
+    "frameCount": 90,
+    "step": 2,
+    "bytes": 1465596
+  },
   "filePattern": "frame_{n}.webp",
   "padding": 4
 }

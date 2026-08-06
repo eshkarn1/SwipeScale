@@ -41,3 +41,41 @@ body {
   background: var(--color-void);
   color: var(--color-bone);
 }
+
+/* ------------------------------------------------------------------ *
+ * Hero headline intro — READ THIS BEFORE CHANGING IT.
+ *
+ * §6 says the headline intro must not fire until `onReady`, because text
+ * animating over an empty canvas reads as unfinished. That collides head-on
+ * with the LCP rule, which has bitten this team three times in two different
+ * technologies:
+ *
+ *   > Above the fold, the element must be PAINTED IN ITS FINAL VISIBLE
+ *   > POSITION IN THE VERY FIRST FRAME. Only its motion may be delayed.
+ *   > The technology — JS, CSS, or anything else — is irrelevant.
+ *
+ * Measured failures: `initial={{opacity:0}}` -> 2876 ms. Fixing only the h1 and
+ * letting LCP relocate to the paragraph -> still 2.8 s. `translateY(100%)` with
+ * `animation: ... both`, where fill-mode `both` applies the `from` keyframe
+ * before the animation starts and left the line clipped outside its mask
+ * -> 3.4 s, 2.9 s of it render delay.
+ *
+ * So the resting state below is VISIBLE and LEGIBLE:
+ *   - opacity stays 1. No opacity, visibility, clip-path or content-visibility.
+ *   - the travel is 0.18em, roughly 16 px at the desktop h1 size — a line-rise,
+ *     not a blank screen with a timer on it.
+ *   - no ancestor clips it, so there is no mask to sit outside of.
+ *
+ * The GSAP tween on `onReady` animates this TO zero. If JS never runs, or
+ * onReady never fires, the headline is still fully readable exactly where it
+ * is — which is the property that makes this safe.
+ * ------------------------------------------------------------------ */
+.hero-line {
+  transform: translateY(0.18em);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-line {
+    transform: none;
+  }
+}
