@@ -160,6 +160,16 @@ export interface FrameSource {
   frameCount: number;
   /** how many master-timeline frames each frame here represents */
   step: number;
+  /**
+   * Total bytes of every frame at this path, from the manifest.
+   *
+   * Carried through so the loader can size Pass A against the real cost of the
+   * tier it actually selected. §7's 2.5s Pass A budget is a *time* budget on a
+   * fixed link, so the only way to honour it across tiers whose per-frame cost
+   * differs by 2.7x is to know what a frame costs before fetching 23 of them.
+   * 0 means the manifest did not declare it; callers fall back to §3's stride.
+   */
+  bytes: number;
 }
 
 export function clampDpr(dpr: number): number {
@@ -183,6 +193,7 @@ export function resolveSource(
       width: variant.width,
       frameCount: variant.frameCount,
       step: variant.step,
+      bytes: variant.bytes ?? 0,
     };
   }
 
@@ -198,6 +209,7 @@ export function resolveSource(
     width: chosen.width,
     frameCount: manifest.frameCount,
     step: 1,
+    bytes: chosen.bytes ?? 0,
   };
 }
 

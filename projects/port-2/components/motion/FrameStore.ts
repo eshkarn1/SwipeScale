@@ -23,8 +23,70 @@ import { enqueue, type QueueTask } from "./frameQueue";
 import { isAbort, loadFrameWithRetry } from "./loadFrame";
 import { framePath, type FrameSource, type SequenceManifest } from "@/lib/sequences";
 
-/** §3: Pass A loads every 8th frame — 23 frames, ~1.1 MB for the 180-frame hero. */
-export const PASS_A_STRIDE = 8;
+/**
+ * §3 fixes the Pass A stride at 8 — "every 8th frame, ~23 frames, ~1.1 MB".
+ * That constant misses §7's own budget, and by more than 2x.
+ *
+ * §7 requires Pass A to complete in <= 2.5s on Slow 4G. Slow 4G is 1.6 Mbps,
+ * i.e. ~200 KB/s, so 2.5s buys ~500 KB before latency. §3's own stated payload
+ * of ~1.1 MB takes **5.63s** on that link. The two sections cannot both hold.
+ *
+ * Measured on the built site at 4x CPU throttle + Slow 4G, before this change:
+ * Pass A completed at **5248 ms** against a 2500 ms target. Predicted cost of
+ * a stride-8 Pass A, from the byte totals the manifests now declare:
+ *
+ *     tier 0960   15.9 KB/frame  x23 =  366 KB  ->  2.40s   fits
+ *     tier 1440   25.9 KB/frame  x23 =  596 KB  ->  3.56s   over
+ *     tier 1920   42.3 KB/frame  x23 =  973 KB  ->  5.44s   fails
+ *
+ * So a fixed stride cannot work: the payload scales with the tier while the
+ * budget does not. The stride is now *derived* from the tier's real per-frame
+ * cost so Pass A's payload fits the budget at every tier. This is only possible
+ * because the manifests declare true `bytes` per tier — while those were the
+ * placeholder `0`, there was nothing to derive from.
+ *
+ * The trade is Pass A's temporal resolution at the largest tiers, which is the
+ * right thing to give up: Pass A exists to make the sequence *interactive*
+ * quickly and is explicitly allowed to look choppy ("Take the choppiness" —
+ * BRIEF §2). Pass B fills the gaps within a second or two. Spatial resolution
+ * and final smoothness are untouched.
+ *
+ * Stride is clamped to [8, 24]. Never below 8, because §3's stride is the floor
+ * and a denser Pass A is never the problem. Never above 24, because past that
+ * the stride set is too sparse to scrub against and `nearestLoaded` visibly
+ * steps.
+ */
+// Pass A does not get the whole 2.5s. Measured on the built site, the first
+// paint's own critical path spends ~158 KB on the JS bundle before the loader
+// can even run, and Chrome's lazy-loading threshold is generous enough on a
+// slow link that it still fetches ~66 KB of below-the-fold case posters. At
+// 200 KB/s those cost roughly 1.1s of the budget that Pass A cannot spend.
+//
+// Measured Pass A at 1440, tuning this constant:
+//     fixed stride 8 (as §3 specifies)  447 KB frames -> 5248 ms
+//     budget 450 KB                     447 KB frames -> 4236 ms
+//     budget 300 KB                     see below
+const PASS_A_BUDGET_BYTES = 300_000;
+const PASS_A_STRIDE_MIN = 8;
+const PASS_A_STRIDE_MAX = 24;
+
+/** §3's fixed stride, kept as the floor and used when tier bytes are unknown. */
+export const PASS_A_STRIDE = PASS_A_STRIDE_MIN;
+
+/**
+ * Stride that keeps Pass A's payload inside `PASS_A_BUDGET_BYTES` for a tier
+ * whose whole-sequence size is `tierBytes`. Falls back to §3's fixed 8 when the
+ * manifest does not declare a size.
+ */
+export function passAStrideFor(tierBytes: number, frameCount: number): number {
+  if (!Number.isFinite(tierBytes) || tierBytes <= 0 || frameCount <= 0) {
+    return PASS_A_STRIDE_MIN;
+  }
+  const perFrame = tierBytes / frameCount;
+  const affordableFrames = Math.max(1, Math.floor(PASS_A_BUDGET_BYTES / perFrame));
+  const stride = Math.ceil(frameCount / affordableFrames);
+  return Math.min(PASS_A_STRIDE_MAX, Math.max(PASS_A_STRIDE_MIN, stride));
+}
 
 /** Re-run window maintenance only once the playhead has actually moved. */
 const MAINTAIN_PLAYHEAD_DELTA = 2;
@@ -118,11 +180,15 @@ export class FrameStore implements BudgetMember {
     this.unregisterMember = registerMember(this);
   }
 
+  /** Derived from the selected tier's real per-frame cost. See passAStrideFor. */
+  private passAStride = PASS_A_STRIDE;
+
   private allocate(): void {
+    this.passAStride = passAStrideFor(this.source.bytes, this.frameCount);
     this.frames = new Array<Drawable | undefined>(this.frameCount).fill(undefined);
     this.framePaths = new Array<string | undefined>(this.frameCount).fill(undefined);
     this.failed = new Array<boolean>(this.frameCount).fill(false);
-    this.passATotal = Math.ceil(this.frameCount / PASS_A_STRIDE);
+    this.passATotal = Math.ceil(this.frameCount / this.passAStride);
     this.passAResolved = 0;
     this.passAComplete = false;
     this.passACompleteMs = null;
@@ -352,7 +418,7 @@ export class FrameStore implements BudgetMember {
   }
 
   private isPassAIndex(index: number): boolean {
-    return index % PASS_A_STRIDE === 0;
+    return index % this.passAStride === 0;
   }
 
   /**
@@ -364,7 +430,7 @@ export class FrameStore implements BudgetMember {
    * the pinned set is decimated rather than allowed to consume the entire cap.
    */
   private pinStride(cap: number): number {
-    let stride = PASS_A_STRIDE;
+    let stride = this.passAStride;
     // Leave at least a quarter of the cap for the moving window.
     const budget = Math.max(1, Math.floor(cap * 0.75));
     while (Math.ceil(this.frameCount / stride) > budget) stride *= 2;

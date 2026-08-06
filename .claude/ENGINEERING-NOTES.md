@@ -77,6 +77,34 @@ Applies to every agent, without exception.
 When a measurement implies a defect, reproduce it a second way before writing
 it up. Two instruments agreeing is evidence; one instrument is a hypothesis.
 
+### A background agent's output file is not a liveness signal
+
+Cost: a corrupted working tree, twice nearly repeated.
+
+A subagent's task output file is a **batched transcript**, not a live log. It
+sat unchanged for ten minutes while the agent was actively creating files. Read
+literally, "idle 600s" says dead; it meant nothing of the sort.
+
+Acting on that reading, work was started inside the agent's project. It had
+just written its own `package.json` pinning `typescript` to 6.0.3 — the correct
+pin, per the Next.js section below. The concurrent `pnpm add` resolved
+`typescript@latest` and left **`node_modules` on 7.0.2 against a package.json
+pinning 6.0.3**. Every `typecheck` run in that window measured a toolchain
+nobody had specified, so neither a pass nor a failure would have been evidence.
+
+**The reliable check is the project, not the agent:**
+
+```bash
+find . -type f -not -path "*/node_modules/*" -not -path "*/.next/*" \
+  -exec stat -f "%Sm %N" -t "%H:%M:%S" {} \; | sort -r | head
+```
+
+Recent mtimes on source files mean it is working. If you still believe it is
+dead, message it and wait for the reply — do not start writing where it is
+writing. And if you have already collided, say so explicitly and hand over the
+exact repair steps rather than leaving a mismatch for someone else to measure
+through.
+
 ---
 
 ## Environment (this machine)
