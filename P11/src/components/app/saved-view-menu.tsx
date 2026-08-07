@@ -70,9 +70,15 @@ export function SavedViewMenu({
     event.preventDefault();
     setError(null);
 
+    // `after`/`before` are keyset cursors — transient position within a
+    // list, not part of what the view IS. Saving one would drop everyone who
+    // loads the view into page four of someone else's browsing session.
+    // `view` is excluded for the same reason it always was: it names the row
+    // being written, not the query.
+    const TRANSIENT = new Set(["after", "before", "view"]);
     const filters: Record<string, string> = {};
     for (const [key, value] of searchParams.entries()) {
-      if (key === "page" || key === "view") continue;
+      if (TRANSIENT.has(key)) continue;
       filters[key] = value;
     }
 

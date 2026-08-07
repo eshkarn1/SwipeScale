@@ -26,10 +26,12 @@ import { parseCustomFieldValues } from "@/lib/custom-fields";
 import { listCustomFieldDefs } from "@/server/services/custom-field-def";
 import { isValidWorkspaceOption } from "@/server/queries/workspace-options";
 import {
-  clampPage,
-  PAGE_SIZE,
-  toPageResult,
-  type PageResult,
+  buildCursorPage,
+  planCursorPage,
+  type CursorPage,
+  type CursorParams,
+  type SortFieldMap,
+  type SortSpec,
 } from "@/lib/pagination";
 
 import type { Deal, Prisma as PrismaNS } from "@/generated/prisma/client";
@@ -38,17 +40,21 @@ export class DealError extends Error {
   override name = "DealError";
 }
 
-const SORT_FIELDS = [
-  "title",
-  "amount",
-  "createdAt",
-  "updatedAt",
-  "expectedCloseDate",
-] as const;
-export type DealSortField = (typeof SORT_FIELDS)[number];
-export function isDealSortField(value: string): value is DealSortField {
-  return (SORT_FIELDS as readonly string[]).includes(value);
-}
+/** See `COMPANY_SORT_FIELDS` in company.ts for why `nullable` has to match
+ * schema.prisma exactly. `amount` is a non-null `Decimal` with a default of
+ * 0, so it sorts as a plain column; `expectedCloseDate` is the nullable one. */
+export const DEAL_SORT_FIELDS: SortFieldMap = {
+  title: { type: "string", nullable: false },
+  amount: { type: "decimal", nullable: false },
+  expectedCloseDate: { type: "date", nullable: true },
+  source: { type: "string", nullable: true },
+  createdAt: { type: "date", nullable: false },
+  updatedAt: { type: "date", nullable: false },
+};
+
+export const DEAL_DEFAULT_SORT: readonly SortSpec[] = [
+  { field: "createdAt", dir: "desc" },
+];
 
 export type DealWithRelations = Deal & {
   stage: { id: string; name: string; type: string; color: string };
@@ -61,24 +67,21 @@ export type DealWithRelations = Deal & {
   }[];
 };
 
-export interface ListDealsParams {
+export interface ListDealsParams extends CursorParams {
   q?: string;
   stageId?: string;
   side?: string;
   companyId?: string;
   ownerId?: string;
   deleted?: boolean;
-  sort?: DealSortField;
-  dir?: "asc" | "desc";
-  page?: number;
+  sort?: readonly SortSpec[];
 }
 
 export async function listDeals(
   workspaceId: string,
   params: ListDealsParams = {},
-): Promise<PageResult<DealWithRelations>> {
-  const page = clampPage(params.page);
-  const where: PrismaNS.DealWhereInput = {
+): Promise<CursorPage<DealWithRelations>> {
+  const filters: PrismaNS.DealWhereInput = {
     workspaceId,
     deletedAt: params.deleted ? { not: null } : null,
     ...(params.stageId ? { stageId: params.stageId } : {}),
@@ -87,9 +90,6 @@ export async function listDeals(
     ...(params.ownerId ? { ownerId: params.ownerId } : {}),
     ...(params.q ? { title: { contains: params.q, mode: "insensitive" } } : {}),
   };
-
-  const sort = params.sort ?? "createdAt";
-  const dir = params.dir ?? "desc";
 
   const include = {
     stage: { select: { id: true, name: true, type: true, color: true } },
@@ -101,18 +101,26 @@ export async function listDeals(
     },
   } satisfies PrismaNS.DealInclude;
 
-  const [items, total] = await Promise.all([
+  const plan = planCursorPage<
+    PrismaNS.DealWhereInput,
+    PrismaNS.DealOrderByWithRelationInput
+  >(params.sort ?? DEAL_DEFAULT_SORT, DEAL_SORT_FIELDS, params);
+
+  const where: PrismaNS.DealWhereInput = plan.keysetFilter
+    ? { AND: [filters, plan.keysetFilter] }
+    : filters;
+
+  const [rows, total] = await Promise.all([
     db.deal.findMany({
       where,
-      orderBy: { [sort]: dir },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
+      orderBy: plan.orderBy,
+      take: plan.take,
       include,
     }),
-    db.deal.count({ where }),
+    db.deal.count({ where: filters }),
   ]);
 
-  return toPageResult(items as DealWithRelations[], total, page);
+  return buildCursorPage(rows as DealWithRelations[], total, plan);
 }
 
 export async function getDeal(

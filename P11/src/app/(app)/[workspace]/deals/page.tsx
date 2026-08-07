@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 
 import { requireWorkspace } from "@/server/tenancy";
 import {
-  isDealSortField,
+  DEAL_DEFAULT_SORT,
+  DEAL_SORT_FIELDS,
   listDeals,
   listDefaultPipelineStages,
 } from "@/server/services/deal";
@@ -12,6 +13,7 @@ import { listCustomFieldDefs } from "@/server/services/custom-field-def";
 import { listSavedViews } from "@/server/services/saved-view";
 import { listMembers } from "@/server/services/workspace";
 import { listWorkspaceOptions } from "@/server/queries/workspace-options";
+import { parseSortParam } from "@/lib/pagination";
 import { serializeDeal } from "@/lib/serialize";
 
 import { DealsClient } from "./deals-client";
@@ -31,8 +33,12 @@ export default async function DealsPage({
 
   const one = (v: string | string[] | undefined) =>
     Array.isArray(v) ? v[0] : v;
-  const sortParam = one(sp.sort);
-  const dirParam = one(sp.dir);
+
+  const sort = parseSortParam(
+    one(sp.sort),
+    DEAL_SORT_FIELDS,
+    DEAL_DEFAULT_SORT,
+  );
 
   const [
     data,
@@ -49,10 +55,12 @@ export default async function DealsPage({
       q: one(sp.q),
       stageId: one(sp.stageId),
       side: one(sp.side),
+      companyId: one(sp.companyId),
+      ownerId: one(sp.owner),
       deleted: one(sp.deleted) === "1",
-      sort: sortParam && isDealSortField(sortParam) ? sortParam : undefined,
-      dir: dirParam === "asc" ? "asc" : "desc",
-      page: one(sp.page) ? Number(one(sp.page)) : undefined,
+      sort,
+      after: one(sp.after),
+      before: one(sp.before),
     }),
     listDefaultPipelineStages(workspace.id),
     listCompanyOptions(workspace.id),

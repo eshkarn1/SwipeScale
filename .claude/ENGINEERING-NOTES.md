@@ -93,6 +93,30 @@ Applies to every agent, without exception.
   Dialog or Sheet is open. A role locator that resolved fine before the overlay
   opened will time out immediately after, which looks like the trigger being
   destroyed. Grab a CSS locator, or capture the handle before opening.
+- **`getByRole(..., { name })` matches the accessible name as a
+  case-insensitive *substring*, not an exact string.** `{ name: "Companies" }`
+  also matched an empty state's "No companies yet" heading, and the failure
+  is a strict-mode violation listing two elements — which reads as "the page
+  rendered twice", not as "your matcher is too loose". Pass `exact: true`, or
+  disambiguate with `level` / a container, whenever the word is a common one.
+- **`fullyParallel: false` does not mean serial.** It serialises tests
+  *within* a spec file; separate spec files still get separate workers, and
+  in an integration suite every one of them shares a single `next dev`
+  process and a single database. Observed: a list page rendered its empty
+  state immediately after a record had been created and asserted visible —
+  a stale RSC payload landing late while the server was busy compiling
+  another worker's route. The same test passed 3/3 in isolation, so it reads
+  as a product race when it is contention. Set `workers: 1` for any suite
+  sharing one stateful server. An acceptance test that fails for a reason
+  unrelated to what it asserts is worse than no test.
+- **An app-level rate limiter will silently disable your E2E suite.** Auth
+  capped at 5 attempts / 15 min / IP means every run signs up from the same
+  IP (localhost), so after two or three runs inside the window `/login`
+  stops sending and the suite fails at "expected `/verify`, got `/login`"
+  with nothing in the trace to explain it — it looks like the login form
+  broke. Reset the limiter's table in Playwright `globalSetup`. Reset *only*
+  that table: a setup step that truncates the whole database hides tests
+  that accidentally depend on each other's rows.
 
 When a measurement implies a defect, reproduce it a second way before writing
 it up. Two instruments agreeing is evidence; one instrument is a hypothesis.
@@ -224,6 +248,34 @@ through.
   `schema.prisma` and check each one reaches a Client Component or an
   action's return value only after that conversion.
 
+- **A Client Component importing a *value* from anything under `server/`
+  drags Prisma and the `pg` driver into the browser bundle.** The build dies
+  with `Module not found: Can't resolve 'fs'` pointing at
+  `pg-connection-string/index.js` — a file nobody wrote an import for, in a
+  package nobody installed directly. Cause: a palette component did
+  `import { MIN_QUERY_LENGTH, type SearchHit } from "@/server/services/search"`,
+  and that service imports `@/server/db`. The trap is that the *type* import
+  had been there harmlessly for as long as you like — types are erased —
+  and adding one shared **constant** to the same import statement is what
+  breaks it. `pnpm typecheck` and `pnpm lint` both pass; only compiling the
+  route catches it, so a dev server that has not yet been asked for that
+  page looks fine. **Rule: anything a Client Component imports as a value
+  lives in `lib/`, never in `server/`.** Split the constants and the result
+  type into a server-free module and have the service import *those*.
+
+- **Tailwind Preflight does not restore `text-transform` on form controls.**
+  An `uppercase` class on a `<tr>` styled the one plain `<span>` header and
+  silently skipped every `<button>` header next to it, so a table shipped
+  with five headers in sentence case and one in caps. It reads as a typo in
+  a single label, not as a CSS inheritance rule, so you go looking in the
+  wrong file. Preflight resets a button's `font-family`/`font-size`/
+  `font-weight` to inherit but not `text-transform`. Measured:
+  `getComputedStyle(th).textTransform === "uppercase"` while the button
+  inside computes `"none"`. Same applies to `letter-spacing` and
+  `font-variant-numeric`. Put typographic classes on the element that
+  renders the text, not on an ancestor, whenever a button/input sits
+  between them.
+
 ### The LCP trap — it has now bitten three times, in two different technologies
 
 **The rule, stated correctly:**
@@ -345,6 +397,40 @@ transform, clip-path, `visibility`, and `content-visibility` all cause it.
   omitted in the component, not overridden by a second variant.
 - **`cursor-pointer` on every clickable element**, `disabled:cursor-not-allowed`
   on disabled ones.
+
+---
+
+## Keyboard-operable data grids
+
+Costly because the failure is invisible to every automated gate and to a
+mouse user, and because "Radix will have handled it" is wrong — Radix gives
+you the menu and the dialog; the grid is yours.
+
+- **A grid with inline editing breaks at the mutation, not at the edit.**
+  Committing unmounts the `<input>` and mounts a `<button>` in its place, so
+  focus falls to `<body>`; then the server action revalidates and the row
+  data is replaced underneath. Hold the "refocus this cell" target in
+  **state, not a ref** — a ref is consumed by the first effect after the
+  commit, which fires long before the refreshed rows arrive, so focus is
+  restored to a cell that is about to be replaced and then lost anyway.
+- **Address cells by position (`row:col`), not by record id.** The row you
+  just deleted is gone; targeting its id leaves focus nowhere. Position with
+  a clamp lands on whatever now occupies that slot, which is what a person
+  expects.
+- **Stop propagation on keydown inside the cell editor.** Otherwise the
+  grid's own arrow handler moves the cell cursor while the user is trying to
+  move the text caret.
+- **A roving-tabindex grid deliberately remembers the last cell used**, so a
+  test that tabs towards one *specific* cell is asserting the opposite of the
+  pattern and will fail once someone uses a different column first. Tab in to
+  whichever cell holds the stop, then move with arrows.
+- **Toast containers sit in the tab order.** A "press Tab until you reach X"
+  helper will wrap through them forever if X is unreachable — bound the loop
+  and print the route focus actually took, or you get a timeout with no
+  information instead of a diagnosis.
+- **Verify with no mouse API at all.** A test that uses `click()` to reach
+  each control proves the control exists, not that it is reachable. Drive
+  `page.keyboard` only and read `document.activeElement` back.
 
 ---
 

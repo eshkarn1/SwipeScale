@@ -73,6 +73,8 @@ import {
   getSavedView,
   listSavedViews,
 } from "@/server/services/saved-view";
+import { searchWorkspace } from "@/server/services/search";
+import { PAGE_SIZE, type SortSpec } from "@/lib/pagination";
 import { CustomFieldError } from "@/lib/custom-fields";
 import {
   createTwoWorkspaceFixture,
@@ -631,6 +633,218 @@ describe("saved view service", () => {
 
       await deleteSavedView(f.workspaceB.id, view.id);
       expect(await getSavedView(f.workspaceA.id, view.id)).not.toBeNull();
+    },
+  );
+});
+
+describe("search service", () => {
+  it.skipIf(!dbAvailable)(
+    "finds companies, contacts and deals in one query (happy path)",
+    async () => {
+      const f = fixture!;
+      const token = `Zyzzyx${Date.now()}`;
+      const stages = await listDefaultPipelineStages(f.workspaceA.id);
+
+      await createCompany(f.workspaceA.id, { name: `${token} Holdings` });
+      await createContact(f.workspaceA.id, {
+        firstName: token,
+        lastName: "Person",
+      });
+      await createDeal(f.workspaceA.id, {
+        title: `${token} transaction`,
+        stageId: stages[0]!.id,
+      });
+
+      const hits = await searchWorkspace(f.workspaceA.id, token);
+      expect(hits.map((h) => h.type).sort()).toEqual([
+        "company",
+        "contact",
+        "deal",
+      ]);
+      // A projection, never a row: nothing here may carry a Prisma.Decimal
+      // across a Server Action boundary (src/lib/serialize.ts).
+      for (const hit of hits) {
+        expect(Object.keys(hit).sort()).toEqual([
+          "id",
+          "label",
+          "sublabel",
+          "type",
+        ]);
+      }
+    },
+  );
+
+  it.skipIf(!dbAvailable)(
+    "returns nothing below the minimum query length (validation failure)",
+    async () => {
+      const f = fixture!;
+      await createCompany(f.workspaceA.id, { name: `Q${Date.now()}` });
+      expect(await searchWorkspace(f.workspaceA.id, "Q")).toEqual([]);
+      expect(await searchWorkspace(f.workspaceA.id, "  ")).toEqual([]);
+    },
+  );
+
+  it.skipIf(!dbAvailable)(
+    "never returns another workspace's records (cross-tenant denial)",
+    async () => {
+      const f = fixture!;
+      const token = `Crossfind${Date.now()}`;
+      await createCompany(f.workspaceA.id, { name: `${token} Holdings` });
+      await createContact(f.workspaceA.id, { firstName: token, lastName: "X" });
+
+      expect(await searchWorkspace(f.workspaceB.id, token)).toEqual([]);
+      expect(await searchWorkspace(f.workspaceA.id, token)).not.toEqual([]);
+    },
+  );
+
+  it.skipIf(!dbAvailable)("excludes soft-deleted records", async () => {
+    const f = fixture!;
+    const token = `Tombstone${Date.now()}`;
+    const company = await createCompany(f.workspaceA.id, {
+      name: `${token} Ltd`,
+    });
+    expect(await searchWorkspace(f.workspaceA.id, token)).toHaveLength(1);
+
+    await softDeleteCompany(f.workspaceA.id, company.id);
+    expect(await searchWorkspace(f.workspaceA.id, token)).toEqual([]);
+  });
+});
+
+/**
+ * The half of the cursor that unit tests cannot reach. `pagination.test.ts`
+ * proves the shape of the predicate; only a real Postgres proves the
+ * ordering semantics it was built against — in particular that pinning
+ * nullable columns to NULLS LAST in both directions actually matches what
+ * the keyset filter assumes.
+ */
+describe("cursor pagination (against a real database)", () => {
+  const TOTAL = PAGE_SIZE + 7;
+  let tokenA: string;
+
+  async function seedCompanies(workspaceId: string, token: string) {
+    for (let i = 0; i < TOTAL; i++) {
+      await createCompany(workspaceId, {
+        name: `${token} ${String(i).padStart(3, "0")}`,
+        // Deliberately leaves a third of the rows with a NULL employees
+        // count, so a sort on that column has to page through a real null
+        // block rather than a uniformly-populated column.
+        employees: i % 3 === 0 ? null : i,
+      });
+    }
+  }
+
+  async function pageThrough(
+    workspaceId: string,
+    token: string,
+    sort: SortSpec[],
+  ): Promise<string[]> {
+    const seen: string[] = [];
+    let after: string | undefined;
+    // Bounded so a cursor bug becomes a failed assertion rather than a hang.
+    for (let guard = 0; guard < 20; guard++) {
+      const page = await listCompanies(workspaceId, { q: token, sort, after });
+      seen.push(...page.items.map((c) => c.id));
+      if (!page.nextCursor) return seen;
+      after = page.nextCursor;
+    }
+    throw new Error("Cursor paging did not terminate.");
+  }
+
+  beforeAll(async () => {
+    if (!dbAvailable) return;
+    tokenA = `Paging${Date.now()}`;
+    await seedCompanies(fixture!.workspaceA.id, tokenA);
+  });
+
+  it.skipIf(!dbAvailable)(
+    "visits every row exactly once on a non-null sort column",
+    async () => {
+      const seen = await pageThrough(fixture!.workspaceA.id, tokenA, [
+        { field: "name", dir: "asc" },
+      ]);
+      expect(seen).toHaveLength(TOTAL);
+      expect(new Set(seen).size).toBe(TOTAL);
+    },
+  );
+
+  it.skipIf(!dbAvailable)(
+    "visits every row exactly once across the null block",
+    async () => {
+      // The case DECISIONS §10.1 called out as the hard part: a nullable,
+      // non-unique sort column paged with a compound (value, id) cursor.
+      for (const dir of ["asc", "desc"] as const) {
+        const seen = await pageThrough(fixture!.workspaceA.id, tokenA, [
+          { field: "employees", dir },
+        ]);
+        expect(new Set(seen).size).toBe(TOTAL);
+        expect(seen).toHaveLength(TOTAL);
+      }
+    },
+  );
+
+  it.skipIf(!dbAvailable)(
+    "visits every row exactly once on a multi-column sort",
+    async () => {
+      const seen = await pageThrough(fixture!.workspaceA.id, tokenA, [
+        { field: "industry", dir: "asc" },
+        { field: "employees", dir: "desc" },
+      ]);
+      expect(new Set(seen).size).toBe(TOTAL);
+    },
+  );
+
+  it.skipIf(!dbAvailable)(
+    "paging back returns exactly the previous page, in reading order",
+    async () => {
+      const f = fixture!;
+      const sort: SortSpec[] = [{ field: "employees", dir: "asc" }];
+
+      const first = await listCompanies(f.workspaceA.id, { q: tokenA, sort });
+      expect(first.prevCursor).toBeNull();
+
+      const second = await listCompanies(f.workspaceA.id, {
+        q: tokenA,
+        sort,
+        after: first.nextCursor ?? undefined,
+      });
+      expect(second.prevCursor).not.toBeNull();
+
+      const back = await listCompanies(f.workspaceA.id, {
+        q: tokenA,
+        sort,
+        before: second.prevCursor ?? undefined,
+      });
+      expect(back.items.map((c) => c.id)).toEqual(first.items.map((c) => c.id));
+    },
+  );
+
+  it.skipIf(!dbAvailable)(
+    "reports the full match count, not the page size",
+    async () => {
+      const page = await listCompanies(fixture!.workspaceA.id, { q: tokenA });
+      expect(page.items).toHaveLength(PAGE_SIZE);
+      expect(page.total).toBe(TOTAL);
+    },
+  );
+
+  it.skipIf(!dbAvailable)(
+    "ignores a cursor cut against a different workspace's rows (cross-tenant denial)",
+    async () => {
+      const f = fixture!;
+      const tokenB = `PagingB${Date.now()}`;
+      await createCompany(f.workspaceB.id, { name: `${tokenB} 000` });
+
+      const pageA = await listCompanies(f.workspaceA.id, { q: tokenA });
+      // A cursor is only ever a position in an ordering — replaying
+      // workspace A's cursor against workspace B must still return only
+      // workspace B's rows.
+      const pageB = await listCompanies(f.workspaceB.id, {
+        q: tokenB,
+        after: pageA.nextCursor ?? undefined,
+      });
+      for (const company of pageB.items) {
+        expect(company.workspaceId).toBe(f.workspaceB.id);
+      }
     },
   );
 });

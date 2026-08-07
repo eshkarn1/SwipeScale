@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 
 import { requireWorkspace } from "@/server/tenancy";
 import {
-  isCompanySortField,
+  COMPANY_DEFAULT_SORT,
+  COMPANY_SORT_FIELDS,
   listCompanies,
   listCompanyIndustries,
 } from "@/server/services/company";
 import { listCustomFieldDefs } from "@/server/services/custom-field-def";
 import { listSavedViews } from "@/server/services/saved-view";
 import { listMembers } from "@/server/services/workspace";
+import { parseSortParam } from "@/lib/pagination";
 import { serializeCompany } from "@/lib/serialize";
 
 import { CompaniesClient } from "./companies-client";
@@ -28,19 +30,25 @@ export default async function CompaniesPage({
 
   const one = (v: string | string[] | undefined) =>
     Array.isArray(v) ? v[0] : v;
-  const sortParam = one(sp.sort);
-  const dirParam = one(sp.dir);
+
+  // `parseSortParam` validates against COMPANY_SORT_FIELDS, so an unknown or
+  // hand-edited `?sort=` degrades to the default rather than reaching Prisma.
+  const sort = parseSortParam(
+    one(sp.sort),
+    COMPANY_SORT_FIELDS,
+    COMPANY_DEFAULT_SORT,
+  );
 
   const [data, industries, members, customFieldDefs, savedViews] =
     await Promise.all([
       listCompanies(workspace.id, {
         q: one(sp.q),
         industry: one(sp.industry),
+        ownerId: one(sp.owner),
         deleted: one(sp.deleted) === "1",
-        sort:
-          sortParam && isCompanySortField(sortParam) ? sortParam : undefined,
-        dir: dirParam === "desc" ? "desc" : "asc",
-        page: one(sp.page) ? Number(one(sp.page)) : undefined,
+        sort,
+        after: one(sp.after),
+        before: one(sp.before),
       }),
       listCompanyIndustries(workspace.id),
       listMembers(workspace.id),

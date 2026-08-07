@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   Handshake,
-  MoreHorizontal,
+  Pencil,
   Plus,
   RotateCcw,
   Search,
@@ -13,12 +13,6 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dropdown,
-  DropdownContent,
-  DropdownItem,
-  DropdownTrigger,
-} from "@/components/ui/dropdown";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
@@ -30,10 +24,27 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { decimalToMinorUnits, formatCurrency } from "@/lib/money";
+import {
+  DataGrid,
+  FilterChips,
+  type ColumnDef,
+  type FilterChip,
+  type GridAction,
+} from "@/components/app/data-grid";
 import { PaginationBar } from "@/components/app/pagination-bar";
 import { SavedViewMenu } from "@/components/app/saved-view-menu";
-import { useListParams } from "@/components/app/use-list-params";
-import { restoreDealAction, softDeleteDealAction } from "@/server/actions/deal";
+import {
+  sortingFromParam,
+  sortingToParam,
+  useListParams,
+  visibilityFromParam,
+  visibilityToParam,
+} from "@/components/app/use-list-params";
+import {
+  restoreDealAction,
+  softDeleteDealAction,
+  updateDealAction,
+} from "@/server/actions/deal";
 
 import {
   DealFormSheet,
@@ -49,9 +60,30 @@ import type {
   SavedView,
   Stage,
 } from "@/generated/prisma/client";
-import type { PageResult } from "@/lib/pagination";
+import type { CursorPage } from "@/lib/pagination";
 
 const ALL = "__all__";
+
+/** `Date` -> the `YYYY-MM-DD` a native date input round-trips. Deliberately
+ * UTC: BUILD_SPEC §8 stores every timestamp UTC, and a local-timezone
+ * conversion here would show (and then save) the previous day west of
+ * Greenwich. */
+function toDateInputValue(value: Date | null): string {
+  return value ? new Date(value).toISOString().slice(0, 10) : "";
+}
+
+/** Resolves a stored `WorkspaceOption.value` to the workspace's own label
+ * (DECISIONS §8.6 — a workspace can rename or archive an option without a
+ * data migration, so the raw value is never shown). Hoisted out of the
+ * component so it is a stable module-level function rather than a new
+ * closure every render, which would otherwise have to be a `useMemo`
+ * dependency. */
+function resolveOptionLabel(
+  options: WorkspaceOptionChoice[],
+  value: string,
+): string {
+  return options.find((option) => option.value === value)?.label ?? value;
+}
 
 export function DealsClient({
   workspaceSlug,
@@ -66,7 +98,7 @@ export function DealsClient({
   savedViews,
 }: {
   workspaceSlug: string;
-  data: PageResult<SerializedDealWithRelations>;
+  data: CursorPage<SerializedDealWithRelations>;
   stages: Stage[];
   owners: OwnerOption[];
   companies: CompanyOption[];
@@ -76,30 +108,228 @@ export function DealsClient({
   customFieldDefs: CustomFieldDef[];
   savedViews: SavedView[];
 }) {
-  const { get, setParams, setPage } = useListParams();
+  const { get, setParams, navigate } = useListParams();
   const q = get("q") ?? "";
   const stageId = get("stageId") ?? "";
   const side = get("side") ?? "";
+  const companyId = get("companyId") ?? "";
+  const owner = get("owner") ?? "";
   const showDeleted = get("deleted") === "1";
-  const sort = get("sort") ?? "createdAt";
-  const dir = get("dir") ?? "desc";
+
+  const sorting = sortingFromParam(get("sort"));
+  const columnVisibility = visibilityFromParam(get("hidden"));
 
   const [searchValue, setSearchValue] = useState(q);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<SerializedDealWithRelations | null>(
     null,
   );
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
-  function toggleSort(field: string) {
-    if (sort === field) {
-      setParams(
-        { sort: field, dir: dir === "asc" ? "desc" : "asc" },
-        { resetPage: false },
-      );
-    } else {
-      setParams({ sort: field, dir: "asc" }, { resetPage: false });
+  const ownerById = useMemo(
+    () => new Map(owners.map((o) => [o.id, o.label])),
+    [owners],
+  );
+  const companyById = useMemo(
+    () => new Map(companies.map((c) => [c.id, c.name])),
+    [companies],
+  );
+  // Vocabulary comes from `WorkspaceOption` rows seeded by the workspace's
+  // vertical preset (DECISIONS §8.6) — never a literal here, so a
+  // `general_b2b` workspace shows its own words and a workspace with no
+  // `deal_side` options shows no side column at all.
+  const sideLabel = (value: string) => resolveOptionLabel(sides, value);
+
+  const columns = useMemo<ColumnDef<SerializedDealWithRelations>[]>(() => {
+    const defs: ColumnDef<SerializedDealWithRelations>[] = [
+      {
+        id: "title",
+        header: "Title",
+        accessorFn: (row) => row.title,
+        cell: (ctx) => (
+          <span className="text-fg truncate font-medium">
+            {ctx.row.original.title}
+          </span>
+        ),
+        meta: {
+          locked: true,
+          edit: { kind: "text", value: (row) => row.title },
+        },
+      },
+      {
+        id: "stage",
+        header: "Stage",
+        // Moving a deal between stages writes an append-only
+        // `DealStageEvent` (BUILD_SPEC §4) — that is a pipeline action, not a
+        // text edit, and it belongs to the M3 board and the edit Sheet.
+        enableSorting: false,
+        accessorFn: (row) => row.stage.name,
+        cell: (ctx) => (
+          <Badge
+            variant={
+              ctx.row.original.stage.type === "WON"
+                ? "accent"
+                : ctx.row.original.stage.type === "LOST"
+                  ? "danger"
+                  : "neutral"
+            }
+          >
+            {ctx.row.original.stage.name}
+          </Badge>
+        ),
+      },
+      {
+        id: "company",
+        header: "Company",
+        enableSorting: false,
+        accessorFn: (row) => row.company?.name ?? "",
+        cell: (ctx) => {
+          const company = ctx.row.original.company;
+          return company ? (
+            <Link
+              href={`/${workspaceSlug}/companies/${company.id}`}
+              className="text-fg-muted hover:text-accent-text truncate"
+              tabIndex={-1}
+            >
+              {company.name}
+            </Link>
+          ) : (
+            <span className="text-fg-muted">—</span>
+          );
+        },
+      },
+      {
+        id: "amount",
+        header: "Amount",
+        accessorFn: (row) => row.amount,
+        cell: (ctx) => (
+          <span className="font-mono">
+            {formatCurrency(
+              decimalToMinorUnits(ctx.row.original.amount),
+              ctx.row.original.currency,
+            )}
+          </span>
+        ),
+        meta: {
+          align: "right",
+          // Dollars in, integer minor units out — see `commitCell`.
+          edit: { kind: "number", value: (row) => row.amount },
+        },
+      },
+      {
+        id: "expectedCloseDate",
+        header: "Expected close",
+        accessorFn: (row) => row.expectedCloseDate?.toString() ?? "",
+        cell: (ctx) => (
+          <span className="text-fg-muted font-mono">
+            {toDateInputValue(ctx.row.original.expectedCloseDate) || "—"}
+          </span>
+        ),
+        meta: {
+          edit: {
+            kind: "date",
+            value: (row) => toDateInputValue(row.expectedCloseDate),
+          },
+        },
+      },
+      {
+        id: "source",
+        header: "Source",
+        accessorFn: (row) => row.source ?? "",
+        cell: (ctx) => (
+          <span className="text-fg-muted truncate">
+            {ctx.row.original.source ?? "—"}
+          </span>
+        ),
+        meta: { edit: { kind: "text", value: (row) => row.source ?? "" } },
+      },
+      {
+        id: "owner",
+        header: "Owner",
+        enableSorting: false,
+        accessorFn: (row) => row.ownerId ?? "",
+        cell: (ctx) => (
+          <span className="text-fg-muted truncate">
+            {ctx.row.original.ownerId
+              ? (ownerById.get(ctx.row.original.ownerId) ?? "—")
+              : "—"}
+          </span>
+        ),
+      },
+    ];
+
+    // Only workspaces whose vertical defines "which party do we represent"
+    // get this column at all.
+    if (sides.length > 0) {
+      defs.push({
+        id: "side",
+        header: "Side",
+        enableSorting: false,
+        accessorFn: (row) => row.side ?? "",
+        cell: (ctx) => (
+          <span className="text-fg-muted truncate">
+            {ctx.row.original.side
+              ? resolveOptionLabel(sides, ctx.row.original.side)
+              : "—"}
+          </span>
+        ),
+      });
     }
+
+    return defs;
+  }, [workspaceSlug, ownerById, sides]);
+
+  const chips: FilterChip[] = [];
+  if (q) {
+    chips.push({
+      id: "q",
+      label: "Search",
+      value: q,
+      onClear: () => {
+        setSearchValue("");
+        setParams({ q: null });
+      },
+    });
+  }
+  if (stageId) {
+    chips.push({
+      id: "stageId",
+      label: "Stage",
+      value: stages.find((s) => s.id === stageId)?.name ?? stageId,
+      onClear: () => setParams({ stageId: null }),
+    });
+  }
+  if (side) {
+    chips.push({
+      id: "side",
+      label: "Side",
+      value: sideLabel(side),
+      onClear: () => setParams({ side: null }),
+    });
+  }
+  if (companyId) {
+    chips.push({
+      id: "companyId",
+      label: "Company",
+      value: companyById.get(companyId) ?? companyId,
+      onClear: () => setParams({ companyId: null }),
+    });
+  }
+  if (owner) {
+    chips.push({
+      id: "owner",
+      label: "Owner",
+      value: ownerById.get(owner) ?? owner,
+      onClear: () => setParams({ owner: null }),
+    });
+  }
+  if (showDeleted) {
+    chips.push({
+      id: "deleted",
+      label: "View",
+      value: "Trash",
+      onClear: () => setParams({ deleted: null }),
+    });
   }
 
   function handleDelete(deal: SerializedDealWithRelations) {
@@ -124,11 +354,76 @@ export function DealsClient({
     });
   }
 
-  const sideLabel = (value: string) =>
-    sides.find((s) => s.value === value)?.label ?? value;
+  async function commitCell(
+    deal: SerializedDealWithRelations,
+    columnId: string,
+    raw: string,
+  ): Promise<string | null> {
+    const value = raw.trim();
+    let input: Record<string, unknown>;
+
+    switch (columnId) {
+      case "title":
+        if (value.length === 0) return "Title is required.";
+        if (value === deal.title) return null;
+        input = { title: value };
+        break;
+      case "amount": {
+        if (value === deal.amount) return null;
+        if (value === "") {
+          input = { amountCents: null };
+          break;
+        }
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed) || parsed < 0) {
+          return "Amount must be a positive number.";
+        }
+        input = { amountCents: Math.round(parsed * 100) };
+        break;
+      }
+      case "expectedCloseDate":
+        if (value === toDateInputValue(deal.expectedCloseDate)) return null;
+        input = { expectedCloseDate: value || null };
+        break;
+      case "source":
+        if (value === (deal.source ?? "")) return null;
+        input = { source: value || null };
+        break;
+      default:
+        return null;
+    }
+
+    const result = await updateDealAction(workspaceSlug, deal.id, input);
+    if (!result.ok) {
+      toast.error(result.error);
+      return result.error;
+    }
+    return null;
+  }
+
+  function rowActions(deal: SerializedDealWithRelations): GridAction[] {
+    if (showDeleted) {
+      return [
+        {
+          label: "Restore",
+          icon: RotateCcw,
+          onSelect: () => handleRestore(deal),
+        },
+      ];
+    }
+    return [
+      { label: "Edit details", icon: Pencil, onSelect: () => setEditing(deal) },
+      {
+        label: "Delete",
+        icon: Trash2,
+        destructive: true,
+        onSelect: () => handleDelete(deal),
+      },
+    ];
+  }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto max-w-7xl px-4 py-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Deals</h1>
         <Button onClick={() => setCreateOpen(true)}>
@@ -137,7 +432,7 @@ export function DealsClient({
         </Button>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -196,6 +491,23 @@ export function DealsClient({
           </Select>
         ) : null}
 
+        <Select
+          value={owner || ALL}
+          onValueChange={(v) => setParams({ owner: v === ALL ? null : v })}
+        >
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Owner" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All owners</SelectItem>
+            {owners.map((o) => (
+              <SelectItem key={o.id} value={o.id}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <SavedViewMenu
           workspaceSlug={workspaceSlug}
           entity="deal"
@@ -211,6 +523,12 @@ export function DealsClient({
           {showDeleted ? "Showing trash" : "Trash"}
         </Button>
       </div>
+
+      {chips.length > 0 ? (
+        <div className="mb-3">
+          <FilterChips chips={chips} />
+        </div>
+      ) : null}
 
       {data.items.length === 0 ? (
         <EmptyState
@@ -232,145 +550,34 @@ export function DealsClient({
         />
       ) : (
         <>
-          <div className="border-border overflow-hidden rounded-lg border">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-border bg-surface text-fg-muted border-b text-xs tracking-wide uppercase">
-                  <SortableHeader
-                    label="Title"
-                    field="title"
-                    sort={sort}
-                    dir={dir}
-                    onSort={toggleSort}
-                  />
-                  <th className="px-4 py-3 font-medium">Stage</th>
-                  <th className="px-4 py-3 font-medium">Company</th>
-                  {sides.length > 0 ? (
-                    <th className="px-4 py-3 font-medium">Side</th>
-                  ) : null}
-                  <SortableHeader
-                    label="Amount"
-                    field="amount"
-                    sort={sort}
-                    dir={dir}
-                    onSort={toggleSort}
-                  />
-                  <SortableHeader
-                    label="Expected close"
-                    field="expectedCloseDate"
-                    sort={sort}
-                    dir={dir}
-                    onSort={toggleSort}
-                  />
-                  <th className="w-11 px-2 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {data.items.map((deal) => (
-                  <tr
-                    key={deal.id}
-                    className="border-border h-row border-b last:border-b-0"
-                  >
-                    <td className="px-4 py-2">
-                      <Link
-                        href={`/${workspaceSlug}/deals/${deal.id}`}
-                        className="text-fg hover:text-accent-text font-medium"
-                      >
-                        {deal.title}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-2">
-                      <Badge
-                        variant={
-                          deal.stage.type === "WON"
-                            ? "accent"
-                            : deal.stage.type === "LOST"
-                              ? "danger"
-                              : "neutral"
-                        }
-                      >
-                        {deal.stage.name}
-                      </Badge>
-                    </td>
-                    <td className="text-fg-muted px-4 py-2">
-                      {deal.company ? (
-                        <Link
-                          href={`/${workspaceSlug}/companies/${deal.company.id}`}
-                          className="hover:text-fg"
-                        >
-                          {deal.company.name}
-                        </Link>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    {sides.length > 0 ? (
-                      <td className="text-fg-muted px-4 py-2">
-                        {deal.side ? sideLabel(deal.side) : "—"}
-                      </td>
-                    ) : null}
-                    <td className="px-4 py-2 font-mono">
-                      {formatCurrency(decimalToMinorUnits(deal.amount))}
-                    </td>
-                    <td className="text-fg-muted px-4 py-2 font-mono">
-                      {deal.expectedCloseDate
-                        ? new Date(deal.expectedCloseDate).toLocaleDateString()
-                        : "—"}
-                    </td>
-                    <td className="px-2 py-2 text-right">
-                      <Dropdown>
-                        <DropdownTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label={`Actions for ${deal.title}`}
-                          >
-                            <MoreHorizontal
-                              className="size-4"
-                              aria-hidden="true"
-                            />
-                          </Button>
-                        </DropdownTrigger>
-                        <DropdownContent align="end">
-                          {showDeleted ? (
-                            <DropdownItem
-                              onSelect={() => handleRestore(deal)}
-                              disabled={isPending}
-                            >
-                              <RotateCcw
-                                className="size-4"
-                                aria-hidden="true"
-                              />
-                              Restore
-                            </DropdownItem>
-                          ) : (
-                            <>
-                              <DropdownItem onSelect={() => setEditing(deal)}>
-                                Edit
-                              </DropdownItem>
-                              <DropdownItem
-                                destructive
-                                onSelect={() => handleDelete(deal)}
-                                disabled={isPending}
-                              >
-                                <Trash2 className="size-4" aria-hidden="true" />
-                                Delete
-                              </DropdownItem>
-                            </>
-                          )}
-                        </DropdownContent>
-                      </Dropdown>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataGrid
+            label="Deals"
+            rows={data.items}
+            columns={columns}
+            rowId={(row) => row.id}
+            rowHref={(row) => `/${workspaceSlug}/deals/${row.id}`}
+            rowLabel={(row) => row.title}
+            actions={rowActions}
+            sorting={sorting}
+            onSortingChange={(next) =>
+              setParams({ sort: sortingToParam(next) })
+            }
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={(next) =>
+              setParams(
+                { hidden: visibilityToParam(next) },
+                { resetCursor: false },
+              )
+            }
+            onCommitCell={commitCell}
+            readOnly={showDeleted}
+          />
           <PaginationBar
-            page={data.page}
-            totalPages={data.totalPages}
             total={data.total}
-            onPageChange={setPage}
+            shown={data.items.length}
+            prevCursor={data.prevCursor}
+            nextCursor={data.nextCursor}
+            onNavigate={navigate}
           />
         </>
       )}
@@ -401,35 +608,5 @@ export function DealsClient({
         deal={editing ?? undefined}
       />
     </div>
-  );
-}
-
-function SortableHeader({
-  label,
-  field,
-  sort,
-  dir,
-  onSort,
-}: {
-  label: string;
-  field: string;
-  sort: string;
-  dir: string;
-  onSort: (field: string) => void;
-}) {
-  const active = sort === field;
-  return (
-    <th className="px-4 py-3 font-medium">
-      <button
-        type="button"
-        onClick={() => onSort(field)}
-        className="hover:text-fg flex cursor-pointer items-center gap-1"
-      >
-        {label}
-        {active ? (
-          <Badge variant="accent">{dir === "asc" ? "↑" : "↓"}</Badge>
-        ) : null}
-      </button>
-    </th>
   );
 }

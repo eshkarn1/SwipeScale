@@ -29,7 +29,13 @@ export function PrimaryNav({ workspaceSlug }: { workspaceSlug: string }) {
   ];
 
   return (
-    <nav className="flex items-center gap-1" aria-label="Primary">
+    // Scrolls sideways instead of widening the document. Five 44px targets
+    // do not fit a 375px viewport, and a nav that overflows makes EVERY page
+    // horizontally scrollable, not just this bar.
+    <nav
+      className="flex min-w-0 items-center gap-1 overflow-x-auto py-1"
+      aria-label="Primary"
+    >
       {links.map((link) => {
         const active = pathname.startsWith(link.href);
         return (
@@ -38,7 +44,7 @@ export function PrimaryNav({ workspaceSlug }: { workspaceSlug: string }) {
             href={link.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "min-h-11 rounded-md px-3 py-2 text-sm font-medium",
+              "min-h-11 shrink-0 rounded-md px-3 py-2 text-sm font-medium",
               "transition-[color,background-color] duration-150 motion-reduce:transition-none",
               "focus-visible:outline-ring focus-visible:outline-2 focus-visible:outline-offset-2",
               active
@@ -55,7 +61,7 @@ export function PrimaryNav({ workspaceSlug }: { workspaceSlug: string }) {
         <DropdownTrigger asChild>
           <button
             type="button"
-            className="text-fg-muted hover:bg-surface-raised hover:text-fg focus-visible:outline-ring flex min-h-11 cursor-pointer items-center gap-1 rounded-md px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="text-fg-muted hover:bg-surface-raised hover:text-fg focus-visible:outline-ring flex min-h-11 shrink-0 cursor-pointer items-center gap-1 rounded-md px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             <Settings className="size-4" aria-hidden="true" />
             Settings

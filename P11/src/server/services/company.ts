@@ -10,10 +10,12 @@ import { db } from "@/server/db";
 import { parseCustomFieldValues } from "@/lib/custom-fields";
 import { listCustomFieldDefs } from "@/server/services/custom-field-def";
 import {
-  clampPage,
-  PAGE_SIZE,
-  toPageResult,
-  type PageResult,
+  buildCursorPage,
+  planCursorPage,
+  type CursorPage,
+  type CursorParams,
+  type SortFieldMap,
+  type SortSpec,
 } from "@/lib/pagination";
 
 import type { Company, Prisma as PrismaNS } from "@/generated/prisma/client";
@@ -22,34 +24,38 @@ export class CompanyError extends Error {
   override name = "CompanyError";
 }
 
-const SORT_FIELDS = [
-  "name",
-  "createdAt",
-  "updatedAt",
-  "employees",
-  "annualRevenue",
-] as const;
-export type CompanySortField = (typeof SORT_FIELDS)[number];
-export function isCompanySortField(value: string): value is CompanySortField {
-  return (SORT_FIELDS as readonly string[]).includes(value);
-}
+/** Sortable columns, and the allow-list a `?sort=` param is validated
+ * against. `nullable` must match `schema.prisma` — it drives both the
+ * `nulls: "last"` pin and the null branches of the keyset predicate, and a
+ * wrong flag silently skips or repeats rows at the null boundary. */
+export const COMPANY_SORT_FIELDS: SortFieldMap = {
+  name: { type: "string", nullable: false },
+  domain: { type: "string", nullable: true },
+  industry: { type: "string", nullable: true },
+  employees: { type: "number", nullable: true },
+  annualRevenue: { type: "decimal", nullable: true },
+  createdAt: { type: "date", nullable: false },
+  updatedAt: { type: "date", nullable: false },
+};
 
-export interface ListCompaniesParams {
+export const COMPANY_DEFAULT_SORT: readonly SortSpec[] = [
+  { field: "name", dir: "asc" },
+];
+
+export interface ListCompaniesParams extends CursorParams {
   q?: string;
   industry?: string;
   ownerId?: string;
   deleted?: boolean;
-  sort?: CompanySortField;
-  dir?: "asc" | "desc";
-  page?: number;
+  /** Already parsed and validated by `parseSortParam`. */
+  sort?: readonly SortSpec[];
 }
 
 export async function listCompanies(
   workspaceId: string,
   params: ListCompaniesParams = {},
-): Promise<PageResult<Company>> {
-  const page = clampPage(params.page);
-  const where: PrismaNS.CompanyWhereInput = {
+): Promise<CursorPage<Company>> {
+  const filters: PrismaNS.CompanyWhereInput = {
     workspaceId,
     deletedAt: params.deleted ? { not: null } : null,
     ...(params.industry ? { industry: params.industry } : {}),
@@ -64,20 +70,28 @@ export async function listCompanies(
       : {}),
   };
 
-  const sort = params.sort ?? "name";
-  const dir = params.dir ?? "asc";
+  const plan = planCursorPage<
+    PrismaNS.CompanyWhereInput,
+    PrismaNS.CompanyOrderByWithRelationInput
+  >(params.sort ?? COMPANY_DEFAULT_SORT, COMPANY_SORT_FIELDS, params);
 
-  const [items, total] = await Promise.all([
+  // The keyset predicate is ANDed with the filters rather than merged into
+  // them: both sides can carry an `OR` (search terms on one, the cursor's
+  // per-column terms on the other) and a merge would silently drop one.
+  const where: PrismaNS.CompanyWhereInput = plan.keysetFilter
+    ? { AND: [filters, plan.keysetFilter] }
+    : filters;
+
+  const [rows, total] = await Promise.all([
     db.company.findMany({
       where,
-      orderBy: { [sort]: dir },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
+      orderBy: plan.orderBy,
+      take: plan.take,
     }),
-    db.company.count({ where }),
+    db.company.count({ where: filters }),
   ]);
 
-  return toPageResult(items, total, page);
+  return buildCursorPage(rows, total, plan);
 }
 
 export async function getCompany(

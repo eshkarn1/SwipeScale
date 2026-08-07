@@ -3,7 +3,7 @@
 Locked-in answers to the open scoping questions. Anything marked **OPEN** still
 needs action before it can be treated as final.
 
-Last updated: 2026-08-05
+Last updated: 2026-08-06
 
 ---
 
@@ -463,32 +463,173 @@ available) runs on port 5433, used by nothing but this project. See
 
 ## 10. M2 — CRM records: choices worth following later
 
-Recorded per BUILD_SPEC §8. The task that produced this milestone narrowed
-BUILD_SPEC §7 M2 to "companies, contacts, deals — list, detail, create,
-edit, soft delete[, restore]. Custom fields via `CustomFieldDef`. Saved
-views via `SavedView`. Search and filtering" — TanStack Table, the ⌘K
-command palette, and inline grid editing are BUILD_SPEC M2 features not in
-that narrowed brief, and are not built here. Flagged rather than silently
-dropped, per §9: if the fuller M2 is wanted, TanStack Table is the natural
-next step for the list views, which are already isolated client components
-that would only need their `<table>` body swapped.
+Recorded per BUILD_SPEC §8.
 
-### 10.1 Pagination is page-based, not cursor-based
+**Status: BUILD_SPEC §7 M2 is complete.** An earlier pass was given a brief
+narrower than the spec and correctly flagged the gap rather than hiding it.
+That gap has since been closed — TanStack Table v8, cursor pagination,
+inline grid editing, the ⌘K palette and the three-region record detail are
+all built, and the milestone's acceptance criterion is now covered by a
+committed end-to-end test. See §10.1.
 
-BUILD_SPEC §7 M2 asks for "pagination (cursor-based)". Built as classic
-`page`/`pageSize` (`src/lib/pagination.ts`, `PAGE_SIZE = 25`) instead.
-Reasoning: a cursor needs a stable, unique sort key to paginate against, and
-these lists support user-chosen multi-field sort (name, employees, amount,
-expected close date, …) via `?sort=&dir=`; a correct keyset cursor for an
-arbitrary sort column requires a compound cursor `(sortValue, id)` re-derived
-per column, which is real complexity for three record lists whose seeded
-size is 60–150 rows each. Offset pagination's known weakness — a
-concurrent insert/delete shifting page boundaries — is a non-issue at this
-scale and access pattern (a single team browsing its own records, not a
-public feed). Revisit if a workspace's record count grows enough that
-`OFFSET` becomes the slow part of the query plan; nothing about the
-service functions' signatures (`{ items, page, pageSize, total,
-totalPages }`) would need to change to swap the implementation later.
+### 10.1 The M2 deviations are closed
+
+The four items previously flagged as missing are built:
+
+**TanStack Table v8** (`src/components/app/data-grid.tsx`). BUILD_SPEC §2
+fixes the choice; `@tanstack/react-table` is pinned to `8.21.3`
+specifically, not the newer 9.x that `pnpm add` resolves by default, because
+§2 names v8. TanStack owns column definition, visibility state and sorting
+state; every element of markup is ours, which is the point of a headless
+table. Column visibility, multi-sort (Shift to add a column, which works
+from the keyboard because Shift+Enter on a focused button produces a click
+event carrying `shiftKey` — exactly what TanStack's default
+`isMultiSortEvent` reads) and dismissible filter chips are all present.
+
+**Cursor pagination** (`src/lib/pagination.ts`). The original entry argued a
+keyset cursor against a user-chosen sort column needs a compound
+`(sortValue, id)` cursor re-derived per column, and that this was too much
+complexity for three lists. The premise was right and the conclusion was
+wrong: that compound cursor is written once, in one file, and shared by all
+three services, so the cost is paid a single time rather than per list.
+
+Two details in that file are load-bearing and must change together:
+
+- Every nullable sort column is pinned to `nulls: "last"` in **both**
+  directions. Postgres defaults to NULLS LAST for ASC and NULLS FIRST for
+  DESC, which would otherwise mean two different keyset predicates per
+  direction. `buildKeysetFilter` assumes the pin.
+- The cursor embeds a **signature of the sort it was cut against**. Change
+  the sort while holding `?after=`, and the cursor decodes to `null` and the
+  list falls back to its first page rather than applying a predicate whose
+  columns no longer match the ordering.
+
+"Previous" is a real backwards keyset query (invert every direction and the
+nulls placement, take a page, reverse the rows), not a remembered stack of
+cursors — so it survives a page reload and a shared URL.
+
+`pagination.test.ts` covers the predicate's *shape*; the ordering semantics
+it is built against are the database's, so `tenancy.test.ts` pages all the
+way through a seeded set against real Postgres and asserts every row is
+visited exactly once — including across the null block, in both directions,
+and on a multi-column sort.
+
+**Inline editing** on the grid, and the **⌘K palette**
+(`src/components/app/command-palette.tsx`), are built. The palette is the
+ARIA combobox + listbox pattern: focus stays in the text input and
+`aria-activedescendant` moves a virtual cursor, which is what lets arrow
+keys drive the list while the user is still typing.
+
+**Record detail** is the three-region shell §7 M2 describes — left summary
+panel, centre tabs, right context rail — shared by all three record types
+via `src/components/app/record-shell.tsx` so they cannot drift apart.
+
+**The acceptance criterion is verified, not assumed.** "A record can be
+created, edited inline, deleted, and restored entirely by keyboard" is
+`e2e/keyboard-record-lifecycle.spec.ts`. After sign-in it calls no `click`,
+`fill`, `hover` or `selectOption` at all — it presses keys and reads
+`document.activeElement` back, because a test that clicks its way to each
+control proves the control exists and nothing about whether it is reachable.
+The previous pass assumed Radix supplied keyboard support; Radix supplies
+the menu and the dialog, and everything that actually broke was ours.
+
+### 10.1.1 What still deviates
+
+- **Activity and Files tabs are empty states.** Deliberate: activities are
+  BUILD_SPEC M4 and file storage is M8. They render a designed empty state
+  naming what will land there, never placeholder rows.
+- **Owner, Company and Stage are not inline-editable.** They are relations
+  and workspace vocabulary, set through the edit Sheet's pickers. Free-texting
+  a company name in a cell would have to guess which record was meant, and a
+  stage change writes an append-only `DealStageEvent` (BUILD_SPEC §4) — that
+  is a pipeline action belonging to M3, not a text edit.
+- **The mobile primary nav scrolls sideways rather than collapsing.** At
+  375px five 44px nav targets do not fit; the nav is now its own horizontal
+  scroll container so it no longer widens the document (measured: the page
+  was 930px wide at a 375px viewport before this, and is 375px after). A
+  proper collapse-to-sheet treatment is polish work for M8.
+- **RLS is still not wired into the app's own connection** — unchanged from
+  §9.5, and untouched by this work.
+
+### 10.1.2 List state lives entirely in the URL, including table state
+
+TanStack's `sorting` and `columnVisibility` are controlled from the query
+string rather than component state (`?sort=name:asc,employees:desc`,
+`?hidden=domain,industry`). Two consequences worth stating:
+
+- Sorting **has** to be `manualSorting`. Pagination is a server-side keyset
+  cursor, so a client-side sort would reorder only the 25 rows on screen —
+  silently, and only sometimes noticeably.
+- A `SavedView` captures column visibility for free, because a saved view is
+  already defined as a snapshot of the query string (§10.2). There is no
+  second representation to keep in sync.
+
+Hidden columns are stored as the **hidden** set, not the shown set: storing
+what is visible would mean every newly added column defaults to hidden for
+anyone holding an older URL or saved view, which is the wrong failure
+direction. `after`/`before` are excluded from a saved view — a cursor is a
+transient position, and saving one would drop everyone who loads the view
+into the middle of someone else's browsing session.
+
+### 10.1.3 The grid is one tab stop, and it remembers where you were
+
+The record grid implements the ARIA grid pattern: roving `tabindex`, so the
+whole table is a single tab stop and arrows move a virtual cursor between
+cells. Row `-1` is the header row, which is how sorting is reached — by
+arrowing up out of the data rather than tabbing backwards past it.
+
+The part that is easy to get wrong, and that the e2e test pins: **focus
+across a re-render.** Committing an inline edit unmounts the `<input>` and
+mounts a `<button>` in its place, so focus lands on `<body>`; the server
+action that follows then calls `revalidatePath` and the row data is replaced
+underneath. The pending-focus target is therefore React **state**, not a
+ref — a ref would be consumed by the first effect after the commit, which
+fires long before the refreshed rows arrive — and it addresses cells by
+**position**, not by record id, so a row that vanished (soft-deleted out of
+the default filter) leaves focus on whatever now occupies that position.
+
+A corollary for anyone writing tests against it: the grid deliberately
+remembers the last cell used, so tabbing towards one *specific* cell asserts
+the opposite of the pattern. Tab in to whichever cell holds the stop, then
+move with arrows.
+
+### 10.1.4 Search returns a projection, never a row
+
+`searchWorkspace` returns four strings per hit. A `Deal` row carries
+`amount`, a Prisma `Decimal`, which cannot cross a Server Action's return
+boundary and fails silently past `tsc`, `eslint` and `next build` (see
+`src/lib/serialize.ts` and `.claude/ENGINEERING-NOTES.md`). Projecting in
+the service means the palette cannot reintroduce that bug, rather than
+relying on every future caller to remember a `serializeDeal` call.
+
+The result type and its two constants live in `src/lib/search.ts`, not in
+the service, because the palette is a Client Component and needs
+`MIN_QUERY_LENGTH` as a *value*. Importing it from the service pulls
+`@/server/db`, Prisma and the `pg` driver into the browser bundle and breaks
+the build with `Module not found: Can't resolve 'fs'` from inside
+`pg-connection-string`. A type-only import would have been erased and caused
+no such problem, which is what makes it easy to walk into: adding one shared
+constant to an existing type import breaks the build, and the error names a
+transitive dependency nobody wrote an import for.
+
+**Rule this encodes: anything a Client Component imports as a value belongs
+in `src/lib/`, never in `src/server/`.**
+
+### 10.1.5 The E2E suite resets the auth rate-limit buckets before it runs
+
+`e2e/support/global-setup.ts` clears `RateLimitBucket`. BUILD_SPEC §8 caps
+auth endpoints at 5 attempts / 15 min / IP (§9.4), and every E2E run signs
+up at least one fresh user from localhost — so the limiter sees a single IP
+making every request in the suite, and after two or three runs inside a
+fifteen-minute window `/login` silently stops sending. The failure surfaces
+as "expected `/verify`, got `/login`" with nothing in the trace to explain
+it. That is the rate limiter working correctly; it just makes the suite
+unrunnable without the reset.
+
+Scoped to that one table on purpose. It does not truncate users, workspaces
+or records: every test namespaces its own data with a run id, and a setup
+step that wiped the database would hide a test that accidentally depends on
+another test's rows.
 
 ### 10.2 A `SavedView` stores raw URL search params, not an interpreted filter tree
 

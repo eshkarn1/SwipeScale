@@ -10,10 +10,12 @@ import { db } from "@/server/db";
 import { parseCustomFieldValues } from "@/lib/custom-fields";
 import { listCustomFieldDefs } from "@/server/services/custom-field-def";
 import {
-  clampPage,
-  PAGE_SIZE,
-  toPageResult,
-  type PageResult,
+  buildCursorPage,
+  planCursorPage,
+  type CursorPage,
+  type CursorParams,
+  type SortFieldMap,
+  type SortSpec,
 } from "@/lib/pagination";
 
 import type { Contact, Prisma as PrismaNS } from "@/generated/prisma/client";
@@ -22,25 +24,27 @@ export class ContactError extends Error {
   override name = "ContactError";
 }
 
-const SORT_FIELDS = [
-  "firstName",
-  "lastName",
-  "createdAt",
-  "updatedAt",
-] as const;
-export type ContactSortField = (typeof SORT_FIELDS)[number];
-export function isContactSortField(value: string): value is ContactSortField {
-  return (SORT_FIELDS as readonly string[]).includes(value);
-}
+/** See `COMPANY_SORT_FIELDS` in company.ts for why `nullable` has to match
+ * schema.prisma exactly. */
+export const CONTACT_SORT_FIELDS: SortFieldMap = {
+  firstName: { type: "string", nullable: false },
+  lastName: { type: "string", nullable: true },
+  email: { type: "string", nullable: true },
+  jobTitle: { type: "string", nullable: true },
+  createdAt: { type: "date", nullable: false },
+  updatedAt: { type: "date", nullable: false },
+};
 
-export interface ListContactsParams {
+export const CONTACT_DEFAULT_SORT: readonly SortSpec[] = [
+  { field: "lastName", dir: "asc" },
+];
+
+export interface ListContactsParams extends CursorParams {
   q?: string;
   companyId?: string;
   ownerId?: string;
   deleted?: boolean;
-  sort?: ContactSortField;
-  dir?: "asc" | "desc";
-  page?: number;
+  sort?: readonly SortSpec[];
 }
 
 export type ContactWithCompany = Contact & {
@@ -50,9 +54,8 @@ export type ContactWithCompany = Contact & {
 export async function listContacts(
   workspaceId: string,
   params: ListContactsParams = {},
-): Promise<PageResult<ContactWithCompany>> {
-  const page = clampPage(params.page);
-  const where: PrismaNS.ContactWhereInput = {
+): Promise<CursorPage<ContactWithCompany>> {
+  const filters: PrismaNS.ContactWhereInput = {
     workspaceId,
     deletedAt: params.deleted ? { not: null } : null,
     ...(params.companyId ? { companyId: params.companyId } : {}),
@@ -68,21 +71,26 @@ export async function listContacts(
       : {}),
   };
 
-  const sort = params.sort ?? "lastName";
-  const dir = params.dir ?? "asc";
+  const plan = planCursorPage<
+    PrismaNS.ContactWhereInput,
+    PrismaNS.ContactOrderByWithRelationInput
+  >(params.sort ?? CONTACT_DEFAULT_SORT, CONTACT_SORT_FIELDS, params);
 
-  const [items, total] = await Promise.all([
+  const where: PrismaNS.ContactWhereInput = plan.keysetFilter
+    ? { AND: [filters, plan.keysetFilter] }
+    : filters;
+
+  const [rows, total] = await Promise.all([
     db.contact.findMany({
       where,
-      orderBy: { [sort]: dir },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
+      orderBy: plan.orderBy,
+      take: plan.take,
       include: { company: { select: { id: true, name: true } } },
     }),
-    db.contact.count({ where }),
+    db.contact.count({ where: filters }),
   ]);
 
-  return toPageResult(items, total, page);
+  return buildCursorPage(rows, total, plan);
 }
 
 export async function getContact(

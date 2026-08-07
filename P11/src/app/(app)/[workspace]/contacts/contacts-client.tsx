@@ -1,24 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
-import {
-  MoreHorizontal,
-  Plus,
-  RotateCcw,
-  Search,
-  Trash2,
-  Users,
-} from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { Pencil, Plus, RotateCcw, Search, Trash2, Users } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dropdown,
-  DropdownContent,
-  DropdownItem,
-  DropdownTrigger,
-} from "@/components/ui/dropdown";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,12 +15,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
+import {
+  DataGrid,
+  FilterChips,
+  type ColumnDef,
+  type FilterChip,
+  type GridAction,
+} from "@/components/app/data-grid";
 import { PaginationBar } from "@/components/app/pagination-bar";
 import { SavedViewMenu } from "@/components/app/saved-view-menu";
-import { useListParams } from "@/components/app/use-list-params";
+import {
+  sortingFromParam,
+  sortingToParam,
+  useListParams,
+  visibilityFromParam,
+  visibilityToParam,
+} from "@/components/app/use-list-params";
 import {
   restoreContactAction,
   softDeleteContactAction,
+  updateContactAction,
 } from "@/server/actions/contact";
 
 import {
@@ -45,9 +45,13 @@ import {
 
 import type { ContactWithCompany } from "@/server/services/contact";
 import type { CustomFieldDef, SavedView } from "@/generated/prisma/client";
-import type { PageResult } from "@/lib/pagination";
+import type { CursorPage } from "@/lib/pagination";
 
 const ALL = "__all__";
+
+function contactName(contact: ContactWithCompany) {
+  return [contact.firstName, contact.lastName].filter(Boolean).join(" ");
+}
 
 export function ContactsClient({
   workspaceSlug,
@@ -58,33 +62,159 @@ export function ContactsClient({
   savedViews,
 }: {
   workspaceSlug: string;
-  data: PageResult<ContactWithCompany>;
+  data: CursorPage<ContactWithCompany>;
   companies: CompanyOption[];
   owners: OwnerOption[];
   customFieldDefs: CustomFieldDef[];
   savedViews: SavedView[];
 }) {
-  const { get, setParams, setPage } = useListParams();
+  const { get, setParams, navigate } = useListParams();
   const q = get("q") ?? "";
   const companyId = get("companyId") ?? "";
+  const owner = get("owner") ?? "";
   const showDeleted = get("deleted") === "1";
-  const sort = get("sort") ?? "lastName";
-  const dir = get("dir") ?? "asc";
+
+  const sorting = sortingFromParam(get("sort"));
+  const columnVisibility = visibilityFromParam(get("hidden"));
 
   const [searchValue, setSearchValue] = useState(q);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ContactWithCompany | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
-  function toggleSort(field: string) {
-    if (sort === field) {
-      setParams(
-        { sort: field, dir: dir === "asc" ? "desc" : "asc" },
-        { resetPage: false },
-      );
-    } else {
-      setParams({ sort: field, dir: "asc" }, { resetPage: false });
-    }
+  const ownerById = useMemo(
+    () => new Map(owners.map((o) => [o.id, o.label])),
+    [owners],
+  );
+  const companyById = useMemo(
+    () => new Map(companies.map((c) => [c.id, c.name])),
+    [companies],
+  );
+
+  const columns = useMemo<ColumnDef<ContactWithCompany>[]>(
+    () => [
+      {
+        id: "firstName",
+        header: "First name",
+        accessorFn: (row) => row.firstName,
+        cell: (ctx) => (
+          <span className="text-fg truncate font-medium">
+            {ctx.row.original.firstName}
+          </span>
+        ),
+        meta: {
+          locked: true,
+          edit: { kind: "text", value: (row) => row.firstName },
+        },
+      },
+      {
+        id: "lastName",
+        header: "Last name",
+        accessorFn: (row) => row.lastName ?? "",
+        cell: (ctx) => (
+          <span className="text-fg truncate font-medium">
+            {ctx.row.original.lastName ?? "—"}
+          </span>
+        ),
+        meta: { edit: { kind: "text", value: (row) => row.lastName ?? "" } },
+      },
+      {
+        id: "company",
+        header: "Company",
+        // A relation, set through the picker on the edit Sheet — free-texting
+        // a company name here would have to guess which record was meant.
+        enableSorting: false,
+        accessorFn: (row) => row.company?.name ?? "",
+        cell: (ctx) => {
+          const company = ctx.row.original.company;
+          return company ? (
+            <Link
+              href={`/${workspaceSlug}/companies/${company.id}`}
+              className="text-fg-muted hover:text-accent-text truncate"
+              // The cell itself is the grid's focus target; a second tab stop
+              // inside it would break the single-tab-stop grid contract.
+              tabIndex={-1}
+            >
+              {company.name}
+            </Link>
+          ) : (
+            <span className="text-fg-muted">—</span>
+          );
+        },
+      },
+      {
+        id: "email",
+        header: "Email",
+        accessorFn: (row) => row.email ?? "",
+        cell: (ctx) => (
+          <span className="text-fg-muted truncate">
+            {ctx.row.original.email ?? "—"}
+          </span>
+        ),
+        meta: { edit: { kind: "text", value: (row) => row.email ?? "" } },
+      },
+      {
+        id: "phone",
+        header: "Phone",
+        enableSorting: false,
+        accessorFn: (row) => row.phone ?? "",
+        cell: (ctx) => (
+          <span className="text-fg-muted font-mono">
+            {ctx.row.original.phone ?? "—"}
+          </span>
+        ),
+        meta: { edit: { kind: "text", value: (row) => row.phone ?? "" } },
+      },
+      {
+        id: "jobTitle",
+        header: "Job title",
+        accessorFn: (row) => row.jobTitle ?? "",
+        cell: (ctx) => (
+          <span className="text-fg-muted truncate">
+            {ctx.row.original.jobTitle ?? "—"}
+          </span>
+        ),
+        meta: { edit: { kind: "text", value: (row) => row.jobTitle ?? "" } },
+      },
+    ],
+    [workspaceSlug],
+  );
+
+  const chips: FilterChip[] = [];
+  if (q) {
+    chips.push({
+      id: "q",
+      label: "Search",
+      value: q,
+      onClear: () => {
+        setSearchValue("");
+        setParams({ q: null });
+      },
+    });
+  }
+  if (companyId) {
+    chips.push({
+      id: "companyId",
+      label: "Company",
+      value: companyById.get(companyId) ?? companyId,
+      onClear: () => setParams({ companyId: null }),
+    });
+  }
+  if (owner) {
+    chips.push({
+      id: "owner",
+      label: "Owner",
+      value: ownerById.get(owner) ?? owner,
+      onClear: () => setParams({ owner: null }),
+    });
+  }
+  if (showDeleted) {
+    chips.push({
+      id: "deleted",
+      label: "View",
+      value: "Trash",
+      onClear: () => setParams({ deleted: null }),
+    });
   }
 
   function handleDelete(contact: ContactWithCompany) {
@@ -94,9 +224,7 @@ export function ContactsClient({
         toast.error(result.error);
         return;
       }
-      toast.success(
-        `Deleted "${contact.firstName} ${contact.lastName ?? ""}".`,
-      );
+      toast.success(`Deleted "${contactName(contact)}".`);
     });
   }
 
@@ -107,14 +235,79 @@ export function ContactsClient({
         toast.error(result.error);
         return;
       }
-      toast.success(
-        `Restored "${contact.firstName} ${contact.lastName ?? ""}".`,
-      );
+      toast.success(`Restored "${contactName(contact)}".`);
     });
   }
 
+  async function commitCell(
+    contact: ContactWithCompany,
+    columnId: string,
+    raw: string,
+  ): Promise<string | null> {
+    const value = raw.trim();
+    let input: Record<string, unknown>;
+
+    switch (columnId) {
+      case "firstName":
+        if (value.length === 0) return "First name is required.";
+        if (value === contact.firstName) return null;
+        input = { firstName: value };
+        break;
+      case "lastName":
+        if (value === (contact.lastName ?? "")) return null;
+        input = { lastName: value || null };
+        break;
+      case "email":
+        if (value === (contact.email ?? "")) return null;
+        input = { email: value || null };
+        break;
+      case "phone":
+        if (value === (contact.phone ?? "")) return null;
+        input = { phone: value || null };
+        break;
+      case "jobTitle":
+        if (value === (contact.jobTitle ?? "")) return null;
+        input = { jobTitle: value || null };
+        break;
+      default:
+        return null;
+    }
+
+    const result = await updateContactAction(workspaceSlug, contact.id, input);
+    if (!result.ok) {
+      toast.error(result.error);
+      return result.error;
+    }
+    return null;
+  }
+
+  function rowActions(contact: ContactWithCompany): GridAction[] {
+    if (showDeleted) {
+      return [
+        {
+          label: "Restore",
+          icon: RotateCcw,
+          onSelect: () => handleRestore(contact),
+        },
+      ];
+    }
+    return [
+      {
+        label: "Edit details",
+        icon: Pencil,
+        onSelect: () => setEditing(contact),
+      },
+      {
+        label: "Delete",
+        icon: Trash2,
+        destructive: true,
+        onSelect: () => handleDelete(contact),
+      },
+    ];
+  }
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto max-w-7xl px-4 py-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Contacts</h1>
         <Button onClick={() => setCreateOpen(true)}>
@@ -123,7 +316,7 @@ export function ContactsClient({
         </Button>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -163,6 +356,23 @@ export function ContactsClient({
           </SelectContent>
         </Select>
 
+        <Select
+          value={owner || ALL}
+          onValueChange={(v) => setParams({ owner: v === ALL ? null : v })}
+        >
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Owner" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All owners</SelectItem>
+            {owners.map((o) => (
+              <SelectItem key={o.id} value={o.id}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <SavedViewMenu
           workspaceSlug={workspaceSlug}
           entity="contact"
@@ -178,6 +388,12 @@ export function ContactsClient({
           {showDeleted ? "Showing trash" : "Trash"}
         </Button>
       </div>
+
+      {chips.length > 0 ? (
+        <div className="mb-3">
+          <FilterChips chips={chips} />
+        </div>
+      ) : null}
 
       {data.items.length === 0 ? (
         <EmptyState
@@ -199,111 +415,34 @@ export function ContactsClient({
         />
       ) : (
         <>
-          <div className="border-border overflow-hidden rounded-lg border">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-border bg-surface text-fg-muted border-b text-xs tracking-wide uppercase">
-                  <SortableHeader
-                    label="Name"
-                    field="lastName"
-                    sort={sort}
-                    dir={dir}
-                    onSort={toggleSort}
-                  />
-                  <th className="px-4 py-3 font-medium">Company</th>
-                  <th className="px-4 py-3 font-medium">Email</th>
-                  <th className="px-4 py-3 font-medium">Phone</th>
-                  <th className="w-11 px-2 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {data.items.map((contact) => (
-                  <tr
-                    key={contact.id}
-                    className="border-border h-row border-b last:border-b-0"
-                  >
-                    <td className="px-4 py-2">
-                      <Link
-                        href={`/${workspaceSlug}/contacts/${contact.id}`}
-                        className="text-fg hover:text-accent-text font-medium"
-                      >
-                        {contact.firstName} {contact.lastName ?? ""}
-                      </Link>
-                    </td>
-                    <td className="text-fg-muted px-4 py-2">
-                      {contact.company ? (
-                        <Link
-                          href={`/${workspaceSlug}/companies/${contact.company.id}`}
-                          className="hover:text-fg"
-                        >
-                          {contact.company.name}
-                        </Link>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="text-fg-muted px-4 py-2">
-                      {contact.email ?? "—"}
-                    </td>
-                    <td className="text-fg-muted px-4 py-2 font-mono">
-                      {contact.phone ?? "—"}
-                    </td>
-                    <td className="px-2 py-2 text-right">
-                      <Dropdown>
-                        <DropdownTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label={`Actions for ${contact.firstName} ${contact.lastName ?? ""}`}
-                          >
-                            <MoreHorizontal
-                              className="size-4"
-                              aria-hidden="true"
-                            />
-                          </Button>
-                        </DropdownTrigger>
-                        <DropdownContent align="end">
-                          {showDeleted ? (
-                            <DropdownItem
-                              onSelect={() => handleRestore(contact)}
-                              disabled={isPending}
-                            >
-                              <RotateCcw
-                                className="size-4"
-                                aria-hidden="true"
-                              />
-                              Restore
-                            </DropdownItem>
-                          ) : (
-                            <>
-                              <DropdownItem
-                                onSelect={() => setEditing(contact)}
-                              >
-                                Edit
-                              </DropdownItem>
-                              <DropdownItem
-                                destructive
-                                onSelect={() => handleDelete(contact)}
-                                disabled={isPending}
-                              >
-                                <Trash2 className="size-4" aria-hidden="true" />
-                                Delete
-                              </DropdownItem>
-                            </>
-                          )}
-                        </DropdownContent>
-                      </Dropdown>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataGrid
+            label="Contacts"
+            rows={data.items}
+            columns={columns}
+            rowId={(row) => row.id}
+            rowHref={(row) => `/${workspaceSlug}/contacts/${row.id}`}
+            rowLabel={contactName}
+            actions={rowActions}
+            sorting={sorting}
+            onSortingChange={(next) =>
+              setParams({ sort: sortingToParam(next) })
+            }
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={(next) =>
+              setParams(
+                { hidden: visibilityToParam(next) },
+                { resetCursor: false },
+              )
+            }
+            onCommitCell={commitCell}
+            readOnly={showDeleted}
+          />
           <PaginationBar
-            page={data.page}
-            totalPages={data.totalPages}
             total={data.total}
-            onPageChange={setPage}
+            shown={data.items.length}
+            prevCursor={data.prevCursor}
+            nextCursor={data.nextCursor}
+            onNavigate={navigate}
           />
         </>
       )}
@@ -326,35 +465,5 @@ export function ContactsClient({
         contact={editing ?? undefined}
       />
     </div>
-  );
-}
-
-function SortableHeader({
-  label,
-  field,
-  sort,
-  dir,
-  onSort,
-}: {
-  label: string;
-  field: string;
-  sort: string;
-  dir: string;
-  onSort: (field: string) => void;
-}) {
-  const active = sort === field;
-  return (
-    <th className="px-4 py-3 font-medium">
-      <button
-        type="button"
-        onClick={() => onSort(field)}
-        className="hover:text-fg flex cursor-pointer items-center gap-1"
-      >
-        {label}
-        {active ? (
-          <Badge variant="accent">{dir === "asc" ? "↑" : "↓"}</Badge>
-        ) : null}
-      </button>
-    </th>
   );
 }

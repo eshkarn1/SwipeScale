@@ -1,3 +1,4 @@
+import { CommandPalette } from "@/components/app/command-palette";
 import { PrimaryNav } from "@/components/app/primary-nav";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { listMyWorkspaces, requireWorkspace } from "@/server/tenancy";
@@ -21,8 +22,12 @@ export default async function WorkspaceLayout({
 
   return (
     <div className="bg-bg min-h-dvh">
-      <header className="border-border bg-surface flex min-h-14 items-center justify-between gap-4 border-b px-4">
-        <div className="flex items-center gap-2">
+      {/* Wraps rather than overflowing: at 375px the nav alone is ~727px
+          wide, which pushed the whole document to 930px and left every page
+          horizontally scrollable. Measured, not guessed — see
+          .claude/ENGINEERING-NOTES.md. */}
+      <header className="border-border bg-surface flex min-h-14 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-4 py-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <WorkspaceSwitcher
             current={{
               id: workspace.id,
@@ -37,9 +42,14 @@ export default async function WorkspaceLayout({
           />
           <PrimaryNav workspaceSlug={slug} />
         </div>
-        <span className="text-fg-muted text-xs font-medium tracking-wide uppercase">
-          {membership.role}
-        </span>
+        <div className="flex shrink-0 items-center gap-3">
+          {/* Mounted at the layout so ⌘K works on every authenticated page,
+              not only the record lists. */}
+          <CommandPalette workspaceSlug={slug} />
+          <span className="text-fg-muted text-xs font-medium tracking-wide uppercase">
+            {membership.role}
+          </span>
+        </div>
       </header>
       <main>{children}</main>
     </div>

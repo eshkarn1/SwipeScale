@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { requireWorkspace } from "@/server/tenancy";
-import { getDeal, listDefaultPipelineStages } from "@/server/services/deal";
+import {
+  getDeal,
+  listDeals,
+  listDefaultPipelineStages,
+} from "@/server/services/deal";
 import { listCompanyOptions } from "@/server/services/company";
 import { listContactOptions } from "@/server/services/contact";
 import { listCustomFieldDefs } from "@/server/services/custom-field-def";
@@ -64,10 +68,21 @@ export default async function DealDetailPage({
     label: `${c.firstName} ${c.lastName ?? ""}`.trim(),
   }));
 
+  // The "Deals" tab on a deal shows the rest of that company's book. Only
+  // meaningful when the deal has a company at all — otherwise there is no
+  // relationship to list, and the tab shows an empty state rather than
+  // every deal in the workspace.
+  const relatedDeals = deal.companyId
+    ? (await listDeals(workspace.id, { companyId: deal.companyId })).items
+        .filter((d) => d.id !== deal.id)
+        .map(serializeDeal)
+    : [];
+
   return (
     <DealDetailClient
       workspaceSlug={slug}
       deal={serializeDeal(deal)}
+      relatedDeals={relatedDeals}
       ownerLabel={ownerLabel}
       owners={owners}
       companies={companies}
