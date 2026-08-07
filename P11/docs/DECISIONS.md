@@ -717,3 +717,52 @@ options configured"). The correct reading of "a workspace with no concept
 of sides ignores it entirely" (schema.prisma's own comment on `Deal.side`)
 is that the field stays `null` forever for that workspace — not that it
 becomes an unvalidated free-text field once no options exist.
+
+---
+
+## 11. One database for all tenants, not a database per client
+
+**Decision:** a single PostgreSQL database shared by every workspace, isolated by
+`workspaceId` on every row plus row-level security. Not a database, schema, or
+instance per customer.
+
+Raised by the owner: if each client has their own leads coming in, don't they
+need their own database? Recorded here because the question is a reasonable one,
+the answer is not obvious, and it is expensive to revisit later.
+
+**What clients actually need is isolation, not separation.** The guarantee they
+care about is that another team can never see their leads. §5 already provides
+it structurally: `requireWorkspace()` on every action, `workspaceId` in every
+`where`, and RLS underneath as a second net that holds even if application code
+forgets. From the customer's side that is indistinguishable from a private
+database.
+
+**Volume is not the argument.** A real-estate team runs on the order of 150
+contacts and 80 deals. Ten thousand such teams is a few million rows, which
+Postgres does not notice. Nothing about inbound lead volume changes this.
+
+**What a database per client would cost:**
+
+| | Shared + RLS | Per client |
+|---|---|---|
+| Migrations | one run | one per tenant; partial failure strands tenants on different schema versions |
+| Connections | one pool | Postgres connections are expensive and capped; pooling breaks in the hundreds |
+| Signup | insert a row | provision, migrate, wait |
+| Admin control room (M7) | one query | fan out across N databases |
+| Cost | one instance | per-database billing |
+
+The migrations row is the one that hurts daily: it turns every schema change
+into an operations event.
+
+**The property worth protecting is the option.** Because `workspaceId` is on
+every row, a large customer can later be moved to their own database, or tenants
+sharded by group, without rewriting the application. Shared-first keeps that door
+open; per-tenant-first is very hard to reverse.
+
+**Revisit when:** a contract demands physical separation, or a data-residency
+rule requires it. Both are enterprise-tier concerns, and §5 above already scopes
+v1 to US-only for the same reason SAML is cut in `ROADMAP.md`.
+
+**Not the same question:** "can a client get their data out?" is CSV export at
+M8 — a much cheaper feature, and probably what is really being asked when
+customers raise this.
